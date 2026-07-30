@@ -8,6 +8,7 @@
 - Added a read-only lightweight operations dashboard at `/api/v1/dashboard/admin`; reports and PNG assets remain available through existing APIs, with no third-party publication automation.
 - Added Phase 9 tests for scheduler health, provider status, automation failures, calibration, archive persistence, and unavailable player-input handling.
 - Real production E2E is documented as pending because no local API-Football or LLM credential was configured; no mock was substituted.
+- Added filtered model-performance analysis by competition, model name, and kickoff-date range.
 
 ## Phase 7 + Phase 8 MVP — 自动化运营与生产部署基础
 

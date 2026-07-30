@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -13,9 +15,13 @@ def run_evaluation(
     payload: EvaluationRunRequest, session: Session = Depends(get_db_session)
 ) -> EvaluationRead:
     try:
-        result = EvaluationService(session).evaluate(payload.prediction_id, payload.actual_result_id)
+        result = EvaluationService(session).evaluate(
+            payload.prediction_id, payload.actual_result_id
+        )
     except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
     return EvaluationRead(
         id=result.id,
         prediction_id=result.prediction_id,
@@ -44,3 +50,19 @@ def competition_summary(
         return EvaluationSummaryRead(**EvaluationService(session).summary(competition_code))
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get("/model-performance")
+def filtered_model_performance(
+    competition_code: str | None = None,
+    model_name: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    session: Session = Depends(get_db_session),
+) -> list[dict]:
+    return EvaluationService(session).model_performance_analysis(
+        competition_code=competition_code,
+        model_name=model_name,
+        start_date=start_date,
+        end_date=end_date,
+    )

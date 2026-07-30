@@ -131,8 +131,41 @@ def test_result_record_refreshes_existing_prediction_archive(session: Session) -
     PredictionArchiveService(session).archive(prediction.id)
 
     ResultService(session).record(
-        match_id=target.id, home_score=1, away_score=0, completed_at=target.kickoff_at,
-        result_source_id=None, notes=None,
+        match_id=target.id,
+        home_score=1,
+        away_score=0,
+        completed_at=target.kickoff_at,
+        result_source_id=None,
+        notes=None,
     )
 
-    assert session.get(PredictionArchive, session.query(PredictionArchive).filter_by(prediction_id=prediction.id).one().id).actual_result["result"] == "home_win"
+    assert (
+        session.get(
+            PredictionArchive,
+            session.query(PredictionArchive).filter_by(prediction_id=prediction.id).one().id,
+        ).actual_result["result"]
+        == "home_win"
+    )
+
+
+def test_model_performance_supports_model_and_time_filters(
+    client: TestClient, session: Session
+) -> None:
+    target = create_prediction_dataset(session)
+    prediction = PredictionPipeline(session).run(target.id)
+    actual = ActualResult(
+        match_id=target.id,
+        home_score=2,
+        away_score=1,
+        completed_at=target.kickoff_at + timedelta(hours=2),
+    )
+    session.add(actual)
+    session.commit()
+    EvaluationService(session).evaluate(prediction.id, actual.id)
+
+    response = client.get(
+        "/api/v1/evaluation/model-performance?competition_code=CSL&model_name=poisson&start_date=2026-07-01&end_date=2026-09-01"
+    )
+
+    assert response.status_code == 200
+    assert response.json()[0]["model_name"] == "poisson"

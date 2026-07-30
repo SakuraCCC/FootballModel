@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -148,6 +148,72 @@ class EvaluationService:
             "brier_score": self._average(evaluations, "brier_score"),
             "models": performances,
         }
+
+    def model_performance_analysis(
+        self,
+        *,
+        competition_code: str | None = None,
+        model_name: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> list[dict]:
+        """Return per-model performance filtered by persisted kickoff-date facts."""
+        statement = (
+            select(ModelRun, ActualResult, Match, ModelVersion)
+            .join(
+                PredictionEvaluation, PredictionEvaluation.prediction_id == ModelRun.prediction_id
+            )
+            .join(ActualResult, ActualResult.id == PredictionEvaluation.actual_result_id)
+            .join(Match, Match.id == ModelRun.match_id)
+            .join(ModelVersion, ModelVersion.id == ModelRun.model_version_id)
+        )
+        if competition_code:
+            competition = self._session.scalar(
+                select(Competition).where(Competition.code == competition_code.upper())
+            )
+            if competition is None:
+                return []
+            statement = statement.where(Match.competition_id == competition.id)
+        if model_name:
+            statement = statement.where(ModelVersion.name == model_name)
+        if start_date:
+            statement = statement.where(
+                Match.kickoff_at >= datetime.combine(start_date, time.min, UTC)
+            )
+        if end_date:
+            statement = statement.where(
+                Match.kickoff_at < datetime.combine(end_date, time.min, UTC)
+            )
+        grouped: dict[tuple[str, str], list[tuple[ModelRun, ActualResult]]] = {}
+        for run, actual, _match, version in self._session.execute(statement):
+            if probability_metrics(
+                run.output_json, result_direction(actual.home_score, actual.away_score)
+            ):
+                grouped.setdefault((version.name, version.version), []).append((run, actual))
+        output = []
+        for (name, version), rows in sorted(grouped.items()):
+            directions = [
+                result_direction(actual.home_score, actual.away_score) for _run, actual in rows
+            ]
+            metrics = [
+                probability_metrics(run.output_json, direction)
+                for (run, _actual), direction in zip(rows, directions, strict=True)
+            ]
+            output.append(
+                {
+                    "model_name": name,
+                    "model_version": version,
+                    "sample_count": len(rows),
+                    "accuracy": sum(
+                        output_direction(run.output_json) == direction
+                        for (run, _actual), direction in zip(rows, directions, strict=True)
+                    )
+                    / len(rows),
+                    "log_loss": sum(item.log_loss for item in metrics if item) / len(rows),
+                    "brier_score": sum(item.brier_score for item in metrics if item) / len(rows),
+                }
+            )
+        return output
 
     def _model_performance(self, competition_id: str | None) -> list[dict]:
         statement = (

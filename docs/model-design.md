@@ -53,3 +53,5 @@ Feature Builder 在已有最近五场赛果基础上增加进球、失球、射�
 `confidence_calibration` 将已赛后评估的模型概率按 0.1 区间聚合，保存观测频率、Calibration Error 和 Reliability（`1 - error`）。各预测 model run 同时保存 `feature_version`、`data_version`、`prompt_version`、`calibration_version`，因此可按赛事、模型和版本回放表现。
 
 `prediction_archive` 固化输入摘要、模型输出、可用报告、海报路径及赛后结果，是未来训练新版本前的审计素材，不反向污染历史模型输入。
+
+`GET /api/v1/evaluation/model-performance` 可按 `competition_code`、`model_name`、`start_date` 和 `end_date` 筛选已评估模型表现；时间筛选以比赛开球时间为准。
