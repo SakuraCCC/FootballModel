@@ -33,3 +33,7 @@
 内部报告要求包含数据截止时间、来源说明、数据完整度、双方分析、模型结果、比分复核和风险说明。小红书版本限制在 1,000 字以内，必须包含比赛、时间、核心差异、模型方向、三个比分、风险与固定免责声明。
 
 Prompt 以文件方式管理：`internal_report_v2.md`、`xiaohongshu_v2.md`、`fact_review_v2.md`。事实审校拒绝将 `reported` 表述为确认事实；内容风控对“投注、收益、稳赚、串关、梭哈”等高风险词返回 `warning`。
+
+## Phase 6 海报渲染
+
+海报不是预测模型，也不使用 AI 图片生成。`PosterService` 只接受 `status=generated` 的报告，读取其预测的联赛、北京时间、球队、方向、总进球范围、BTTS、三组比分、风险等级和置信度。五个赛事代码映射到独立 HTML/CSS 模板，Playwright Chromium 在固定 1080×1350 画布截图为 PNG；水印固定为 `Sakura Football Model V2.0`。

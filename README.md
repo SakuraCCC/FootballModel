@@ -58,6 +58,18 @@ curl -X POST http://localhost:8000/api/v1/reports/generate \
 
 Use the returned `report_id` with `GET /api/v1/reports/{report_id}`. Set `report_type` to `xiaohongshu` to produce the constrained social-text version.
 
+## Generate a poster
+
+Only a fact-checked report with `status=generated` can produce a poster. The renderer uses a deterministic HTML/CSS template and Playwright Chromium to create a PNG; it does not use image generation.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/posters/generate \
+  -H "Content-Type: application/json" \
+  -d '{"report_id":"<report-id>"}'
+```
+
+Use the returned `poster_id` with `GET /api/v1/posters/{poster_id}`. The response includes a stable image URL under `/generated/posters/`.
+
 The initial migration creates the foundation schema and inserts only five supported-competition
 metadata records: `CSL`, `MLS`, `LIGA_MX`, `UCL_QUALIFIER`, and `BRA_SERIE_A`.
 

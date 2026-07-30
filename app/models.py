@@ -327,3 +327,33 @@ class ReportOutput(TimestampedModel, Base):
     llm_model: Mapped[str | None] = mapped_column(String(160), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     warnings: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+
+
+class PosterOutput(TimestampedModel, Base):
+    __tablename__ = "poster_outputs"
+    __table_args__ = (Index("ix_poster_outputs_report_created", "report_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    report_id: Mapped[str] = mapped_column(ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False)
+    prediction_id: Mapped[str] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="RESTRICT"), nullable=False
+    )
+    competition_style: Mapped[str] = mapped_column(String(32), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    template_version: Mapped[str] = mapped_column(String(80), nullable=False)
+
+
+class ContentPublishRecord(TimestampedModel, Base):
+    __tablename__ = "content_publish_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    report_id: Mapped[str] = mapped_column(ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False)
+    poster_id: Mapped[str | None] = mapped_column(
+        ForeignKey("poster_outputs.id", ondelete="RESTRICT"), nullable=True
+    )
+    platform: Mapped[str] = mapped_column(String(64), nullable=False)
+    publish_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    views: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    likes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    collects: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    comments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

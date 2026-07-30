@@ -24,3 +24,5 @@
 ## 报告中的来源使用
 
 Phase 5 的 `ReportContext` 从与预测关联的 `model_runs.input_snapshot_id` 读取快照，输出快照 ID、供应商、端点和检索时间。比赛的 `certainty` 决定其进入 `confirmed_facts` 或 `reported_information`；报告生成与事实审校均不得提升可信等级。
+
+Phase 6 海报不再读取供应商 API，也不生成或修改事实。它只读取已审校报告对应的结构化预测字段，因此可通过 `report_id` 与 `prediction_id` 回溯其来源。

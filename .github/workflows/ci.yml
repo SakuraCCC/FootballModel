@@ -39,6 +39,8 @@ jobs:
           python-version: "3.13"
       - name: Install dependencies
         run: pip install .[dev]
+      - name: Install Chromium for poster rendering
+        run: playwright install --with-deps chromium
       - name: Lint
         run: ruff check .
       - name: Run database migrations

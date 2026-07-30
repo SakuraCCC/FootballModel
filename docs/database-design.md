@@ -18,6 +18,13 @@
 
 `report_outputs` 保存每次生成的报告：`prediction_id`、`report_type`（`internal` 或 `xiaohongshu`）、`content`、`prompt_version`、`llm_model` 与创建时间；另存储 `status` 和 `warnings`，用于表达 `generated`、`warning` 或 `llm_unavailable`。报告内容可为空，仅限 LLM 未配置或不可用的可恢复状态。
 
+## Phase 6 海报与运营基础
+
+- `poster_outputs`：关联 `report_id` 与 `prediction_id`，保存 `competition_style`、PNG `file_path`、`template_version` 和创建时间。
+- `content_publish_records`：为 Phase 7 预留发布记录，保存报告、可选海报、平台、发布时间、浏览、点赞、收藏和评论。
+
+海报只允许关联通过审校的 `report_outputs`，不会写回或改变预测、报告事实和模型输出。
+
 ## 时间完整性
 
 `model_runs.input_snapshot_id` 指向预测输入快照。回测时该快照的 `retrieved_at` 必须不晚于比赛 `kickoff_at`；最终赛果仅用于赛后评价。

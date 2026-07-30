@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 6 — 比赛海报生成系统
+
+- 新增五套赛事 HTML/CSS 模板、风格映射、固定水印与 Playwright PNG 渲染器。
+- 新增 `poster_outputs`、`content_publish_records`、海报生成/查询 API 和静态图片地址。
+- 只允许已审校的报告生成海报；文字来自结构化字段，不使用图片模型。
+- 修复 CI 中 `tests.*` 共享测试辅助模块无法导入的问题，并加入 Chromium 安装步骤。
+
 ## Phase 5 — AI 报告生成与事实审校系统
 
 - 新增来源保留的 `ReportContext`、内部报告与小红书报告生成服务。

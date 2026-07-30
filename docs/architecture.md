@@ -12,8 +12,9 @@
 - Phase 4：基于已保存数据的 Feature Builder、Poisson、Dixon-Coles、Elo、Ensemble、比分模拟和预测结果。
 - Phase 4.5：真实赛果、赛后评估、模型表现聚合和无未来数据泄漏的历史回测。
 - Phase 5：来源保留的报告上下文、外置版本化 Prompt、OpenAI 兼容 LLM、事实审校、内容风控与报告持久化。
+- Phase 6：赛事风格化 HTML/CSS 海报、Playwright PNG 渲染、海报溯源与运营记录基础表。
 
-Phase 5 不实现海报或前端。Phase 2 的 mock 输出必须始终带有 `mock_for_pipeline_test=true`，不得表现为真实预测。
+Phase 6 不使用图片模型生成海报或文字。Phase 2 的 mock 输出必须始终带有 `mock_for_pipeline_test=true`，不得表现为真实预测。
 
 ## 分层
 
@@ -24,6 +25,7 @@ Phase 5 不实现海报或前端。Phase 2 的 mock 输出必须始终带有 `mo
 5. `services/evaluation` 根据最终赛果计算单次预测评价与按赛事聚合的模型表现。
 6. `services/backtest` 按开球时间回放已完赛比赛；每次运行只能读取 `retrieved_at <= kickoff_at` 的快照。
 7. `services/reporting` 只消费已保存的预测、模型运行、来源快照与评价结果；它将事实、报道和模型推断分开处理。
+8. `services/posters` 只消费已通过事实审校的报告和结构化预测，以固定 HTML/CSS 模板经 Playwright 生成 PNG。
 
 ## 数据与时间原则
 
@@ -35,6 +37,7 @@ Phase 5 不实现海报或前端。Phase 2 的 mock 输出必须始终带有 `mo
 - 回测绝不使用开球后的赛果、统计或快照；未来数据不可用于历史预测。
 - 报告必须保留来源快照引用和 certainty；`reported` 不得转写为 `confirmed` 或官方信息。
 - 未配置 LLM 时，报告 API 返回并持久化 `llm_unavailable`，不调用外部服务也不使请求失败。
+- 海报文字来自结构化数据库字段和固定模板，不由图片模型生成；文件关联报告、预测、赛事风格与模板版本。
 
 ## 开发流程
 

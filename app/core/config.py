@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     llm_base_url: str | None = None
     llm_api_key: SecretStr | None = None
     llm_model: str | None = None
+    poster_output_dir: str = "generated/posters"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

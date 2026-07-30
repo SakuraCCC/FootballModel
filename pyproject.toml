@@ -15,6 +15,7 @@ dependencies = [
     "httpx>=0.28,<1",
     "psycopg[binary]>=3.2,<4",
     "pydantic-settings>=2.6,<3",
+    "playwright>=1.49,<2",
     "redis>=5.2,<7",
     "sqlalchemy>=2.0,<3",
     "uvicorn[standard]>=0.32,<1",
@@ -25,6 +26,9 @@ dev = ["pytest>=8.3,<9", "ruff>=0.8,<1"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+"app.services.posters" = ["templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

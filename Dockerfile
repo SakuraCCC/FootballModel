@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY app ./app
-RUN pip install --upgrade pip && pip install .
+COPY prompts ./prompts
+RUN pip install --upgrade pip && pip install . && playwright install --with-deps chromium
 COPY alembic.ini ./
 COPY alembic ./alembic
 EXPOSE 8000
