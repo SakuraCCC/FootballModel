@@ -117,3 +117,61 @@ class ActualResult(TimestampedModel, Base):
     away_score: Mapped[int] = mapped_column(Integer, nullable=False)
     result_source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AnalysisJob(TimestampedModel, Base):
+    __tablename__ = "analysis_jobs"
+    __table_args__ = (Index("ix_analysis_jobs_batch_id", "batch_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    batch_id: Mapped[str] = mapped_column(String(36), nullable=False, default=uuid_string)
+    competition_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    match_date: Mapped[date] = mapped_column(Date, nullable=False)
+    model_version: Mapped[str] = mapped_column(String(120), nullable=False)
+    poster_style: Mapped[str] = mapped_column(String(80), nullable=False)
+    watermark: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    current_step: Mapped[str] = mapped_column(String(64), nullable=False, default="created")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    matches: Mapped[list["AnalysisJobMatch"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+    results: Mapped[list["AnalysisResult"]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )
+
+
+class AnalysisJobMatch(TimestampedModel, Base):
+    __tablename__ = "analysis_job_matches"
+    __table_args__ = (
+        UniqueConstraint("job_id", "home_team", "away_team", name="uq_analysis_job_matches_teams"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("analysis_jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    home_team: Mapped[str] = mapped_column(String(160), nullable=False)
+    away_team: Mapped[str] = mapped_column(String(160), nullable=False)
+
+    job: Mapped[AnalysisJob] = relationship(back_populates="matches")
+    results: Mapped[list["AnalysisResult"]] = relationship(back_populates="match")
+
+
+class AnalysisResult(TimestampedModel, Base):
+    __tablename__ = "analysis_results"
+    __table_args__ = (UniqueConstraint("job_id", "match_id", name="uq_analysis_results_job_match"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    job_id: Mapped[str] = mapped_column(
+        ForeignKey("analysis_jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("analysis_job_matches.id", ondelete="CASCADE"), nullable=False
+    )
+    structured_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="completed")
+
+    job: Mapped[AnalysisJob] = relationship(back_populates="results")
+    match: Mapped[AnalysisJobMatch] = relationship(back_populates="results")
