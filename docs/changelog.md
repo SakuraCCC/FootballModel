@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 5 — AI 报告生成与事实审校系统
+
+- 新增来源保留的 `ReportContext`、内部报告与小红书报告生成服务。
+- 新增文件化、版本化 Prompt 和 OpenAI 兼容 LLM Client；未配置时安全返回 `llm_unavailable`。
+- 新增事实审校与高风险词风控，禁止将 `reported` 升级为确认事实。
+- 新增 `report_outputs`、报告生成/查询 API，以及 Prompt、Schema、审校、风控和生成测试。
+
 ## Phase 4.5 — 历史回测与模型评估系统
 
 - 扩展最终赛果存储，新增结果、总进球、BTTS 与完赛时间。

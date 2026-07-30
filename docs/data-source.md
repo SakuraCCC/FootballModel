@@ -20,3 +20,7 @@
 每次供应商成功响应都保存 `raw_data_snapshots`：供应商、端点、请求时间、响应 JSON、检索时间与 `data_source_id`。历史回测仅选择开球时刻或之前取得的快照；比赛结束后取得的资料不能参与该场预测。
 
 最终赛果通过 `POST /api/v1/results` 保存，并可关联结果来源。赛果是评估目标，不是对应比赛预测特征的输入。
+
+## 报告中的来源使用
+
+Phase 5 的 `ReportContext` 从与预测关联的 `model_runs.input_snapshot_id` 读取快照，输出快照 ID、供应商、端点和检索时间。比赛的 `certainty` 决定其进入 `confirmed_facts` 或 `reported_information`；报告生成与事实审校均不得提升可信等级。

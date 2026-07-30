@@ -1,14 +1,9 @@
 # Sakura Football Model V2.0
 
-Phase 1 establishes the service foundation only: FastAPI, PostgreSQL, Redis, Docker Compose,
-Alembic migrations, supported-competition metadata, and a minimal read-only API. It deliberately
-contains no prediction model, data-provider integration, mock match data, LLM workflow, poster,
-or review dashboard.
+Sakura AI 足球预测系统 V2.0 现已完成 Phase 1–5：工程基础、Analysis Job、真实数据采集与溯源、预测与回测评估、以及来源保留的 AI 报告生成与事实审校。系统尚不生成海报或前端页面。
 
-Phase 2 adds an asynchronous Analysis Job lifecycle. It validates a submitted batch, produces a
-fixed pipeline-test JSON structure, and persists the result. Every generated result contains
-`mock_for_pipeline_test=true`; no football data source, prediction model, LLM, or poster generator
-is called.
+Phase 2 的 Analysis Job 仍只生成固定的管线测试 JSON，且每份结果都有
+`mock_for_pipeline_test=true`。真实预测需使用 Phase 3 保存的数据和 Phase 4 的预测接口。
 
 ## Start with Docker
 
@@ -50,6 +45,18 @@ curl -X POST http://localhost:8000/api/v1/predictions/run \
 ```
 
 Use the returned `prediction_id` with `GET /api/v1/predictions/{prediction_id}`.
+
+## Generate a report
+
+Set `LLM_BASE_URL`、`LLM_API_KEY` 和 `LLM_MODEL` in `.env` for an OpenAI-compatible endpoint. Keys remain local and must not be committed. Without these settings, report generation returns `llm_unavailable` without failing.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/reports/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prediction_id":"<prediction-id>","report_type":"internal"}'
+```
+
+Use the returned `report_id` with `GET /api/v1/reports/{report_id}`. Set `report_type` to `xiaohongshu` to produce the constrained social-text version.
 
 The initial migration creates the foundation schema and inserts only five supported-competition
 metadata records: `CSL`, `MLS`, `LIGA_MX`, `UCL_QUALIFIER`, and `BRA_SERIE_A`.

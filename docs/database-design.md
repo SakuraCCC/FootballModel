@@ -14,6 +14,10 @@
 
 `model_runs.prediction_id` 将一次预测关联到其 Poisson、Dixon-Coles、Elo 与 Ensemble 运行，支持逐模型表现统计。迁移只新增或兼容扩展，不破坏 Phase 1–4 的数据。
 
+## Phase 5 报告输出
+
+`report_outputs` 保存每次生成的报告：`prediction_id`、`report_type`（`internal` 或 `xiaohongshu`）、`content`、`prompt_version`、`llm_model` 与创建时间；另存储 `status` 和 `warnings`，用于表达 `generated`、`warning` 或 `llm_unavailable`。报告内容可为空，仅限 LLM 未配置或不可用的可恢复状态。
+
 ## 时间完整性
 
 `model_runs.input_snapshot_id` 指向预测输入快照。回测时该快照的 `retrieved_at` 必须不晚于比赛 `kickoff_at`；最终赛果仅用于赛后评价。

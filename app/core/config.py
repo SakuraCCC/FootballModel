@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     api_football_key: SecretStr | None = None
     api_football_base_url: str = "https://v3.football.api-sports.io"
+    llm_base_url: str | None = None
+    llm_api_key: SecretStr | None = None
+    llm_model: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

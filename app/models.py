@@ -311,3 +311,19 @@ class ModelPerformance(TimestampedModel, Base):
     log_loss: Mapped[float | None] = mapped_column(nullable=True)
     brier_score: Mapped[float | None] = mapped_column(nullable=True)
     calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ReportOutput(TimestampedModel, Base):
+    __tablename__ = "report_outputs"
+    __table_args__ = (Index("ix_report_outputs_prediction_created", "prediction_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    prediction_id: Mapped[str] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="RESTRICT"), nullable=False
+    )
+    report_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prompt_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    llm_model: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    warnings: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
