@@ -138,6 +138,49 @@ class Player(TimestampedModel, Base):
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
 
+class ModelVersion(TimestampedModel, Base):
+    __tablename__ = "model_versions"
+    __table_args__ = (UniqueConstraint("name", "version", name="uq_model_versions_name_version"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    version: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class ModelRun(TimestampedModel, Base):
+    __tablename__ = "model_runs"
+    __table_args__ = (Index("ix_model_runs_match_created", "match_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
+    model_version_id: Mapped[str] = mapped_column(
+        ForeignKey("model_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    input_snapshot_id: Mapped[str | None] = mapped_column(
+        ForeignKey("raw_data_snapshots.id", ondelete="RESTRICT"), nullable=True
+    )
+    output_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    confidence: Mapped[str] = mapped_column(String(24), nullable=False)
+
+
+class PredictionResult(TimestampedModel, Base):
+    __tablename__ = "prediction_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
+    model_run_id: Mapped[str] = mapped_column(ForeignKey("model_runs.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    direction: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    goal_range: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    btts: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    primary_score: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    stable_score: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    alternative_score: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    review_summary: Mapped[dict] = mapped_column(JSON, nullable=False)
+    confidence: Mapped[str] = mapped_column(String(24), nullable=False)
+
+
 class Prediction(TimestampedModel, Base):
     __tablename__ = "predictions"
     __table_args__ = (Index("ix_predictions_match_created", "match_id", "created_at"),)

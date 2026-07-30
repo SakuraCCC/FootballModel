@@ -9,8 +9,9 @@
 - Phase 1：FastAPI、PostgreSQL、Redis、Celery、Docker、基础 API。
 - Phase 2：Analysis Job 生命周期和仅用于管线验证的结构化输出。
 - Phase 3：真实数据供应商适配、标准化、来源与原始响应追踪、数据质量评分。
+- Phase 4：基于已保存数据的预测特征、统计模型、模拟、复核与审计结果。
 
-Phase 3 不实现预测模型、LLM、文章、海报或前端。任何 Phase 2 测试结果都必须保留 `mock_for_pipeline_test=true`，不得表现为真实预测。
+Phase 4 不实现 LLM、文章、海报或前端。任何 Phase 2 测试结果都必须保留 `mock_for_pipeline_test=true`，不得表现为真实预测。
 
 ## 分层
 
@@ -19,6 +20,7 @@ Phase 3 不实现预测模型、LLM、文章、海报或前端。任何 Phase 2 
 3. `services/normalization` 将供应商对象映射到系统统一实体。
 4. `services/quality` 评估数据完整度，不改变事实内容。
 5. PostgreSQL 保存规范化实体、来源与原始响应快照；Celery 执行异步任务。
+6. `services/prediction` 只从已保存的规范化比赛、赛果与快照生成特征、模型运行和预测结果。
 
 ## 数据原则
 
@@ -27,6 +29,7 @@ Phase 3 不实现预测模型、LLM、文章、海报或前端。任何 Phase 2 
 - `official`、`confirmed`、`reported`、`predicted`、`unavailable` 不可混用；`reported` 不能升级为 `confirmed`。
 - 无供应商字段一律保存为 `null` 或 `unavailable`，不以 mock 数据补全。
 - 原始 HTTP 响应保存到 `raw_data_snapshots`，以便未来追溯分析和预测输入。
+- 预测模型缺少历史赛果、比赛时间、球队或联赛进球均值时，必须返回 `not_available`，不能补造特征。
 
 ## 开发流程
 

@@ -37,6 +37,20 @@ curl -X POST http://localhost:8000/api/v1/analysis-jobs \
 Use the returned `id` with `GET /api/v1/analysis-jobs/{id}` to track status and
 `GET /api/v1/analysis-jobs/{id}/result` once the job is complete.
 
+## Run a prediction
+
+After real matches and historical actual results have been ingested, run a prediction from its saved
+match ID. The system returns `not_available` when there is not enough persisted history; it does not
+invent missing input data.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/predictions/run \
+  -H "Content-Type: application/json" \
+  -d '{"match_id":"<saved-match-id>"}'
+```
+
+Use the returned `prediction_id` with `GET /api/v1/predictions/{prediction_id}`.
+
 The initial migration creates the foundation schema and inserts only five supported-competition
 metadata records: `CSL`, `MLS`, `LIGA_MX`, `UCL_QUALIFIER`, and `BRA_SERIE_A`.
 
