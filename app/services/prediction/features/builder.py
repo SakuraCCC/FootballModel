@@ -22,7 +22,7 @@ class FeatureBuilder:
         home_team = self._team_features(match.home_team_id, match.kickoff_at, history, is_home=True)
         away_team = self._team_features(match.away_team_id, match.kickoff_at, history, is_home=False)
         league_average = self._league_average_goals(history)
-        snapshot_id = self._latest_snapshot_id(match.source_id)
+        snapshot_id = self._latest_snapshot_id(match.source_id, match.kickoff_at)
         missing_fields = self._missing_fields(match, home_team, away_team, league_average, snapshot_id)
         return MatchFeatures(
             match_id=match.id,
@@ -42,7 +42,12 @@ class FeatureBuilder:
         statement = (
             select(Match, ActualResult)
             .join(ActualResult, ActualResult.match_id == Match.id)
-            .where(Match.competition_id == match.competition_id, Match.kickoff_at < match.kickoff_at)
+            .where(
+                Match.competition_id == match.competition_id,
+                Match.kickoff_at < match.kickoff_at,
+                ActualResult.completed_at.is_not(None),
+                ActualResult.completed_at <= match.kickoff_at,
+            )
             .order_by(Match.kickoff_at.asc())
         )
         return [
@@ -114,12 +119,17 @@ class FeatureBuilder:
             return None
         return sum(item.home_score + item.away_score for item in history) / len(history)
 
-    def _latest_snapshot_id(self, source_id: str | None) -> str | None:
-        if source_id is None:
+    def _latest_snapshot_id(
+        self, source_id: str | None, kickoff_at: datetime | None
+    ) -> str | None:
+        if source_id is None or kickoff_at is None:
             return None
         snapshot = self._session.scalar(
             select(RawDataSnapshot)
-            .where(RawDataSnapshot.data_source_id == source_id)
+            .where(
+                RawDataSnapshot.data_source_id == source_id,
+                RawDataSnapshot.retrieved_at <= kickoff_at,
+            )
             .order_by(RawDataSnapshot.retrieved_at.desc())
         )
         return snapshot.id if snapshot else None

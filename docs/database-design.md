@@ -1,11 +1,19 @@
 # 数据库设计
 
-核心实体：`competitions`、`seasons`、`teams`、`players`、`matches`、`data_sources`、`raw_data_snapshots`、`analysis_jobs`、`analysis_job_matches`、`analysis_results`、`model_versions`、`model_runs`、`prediction_results`。
+## 核心表
 
-`competitions` 用稳定代码区分 CSL、MLS、LIGA_MX、UCL_QUALIFIER、BRA_SERIE_A。所有规范化实体由外键关联该统一赛事维度。`data_sources` 保存供应商元数据；`raw_data_snapshots` 保存原始可审计响应。事实字段的 `certainty` 使用受限枚举值。
+`competitions`、`seasons`、`teams`、`players`、`matches`、`data_sources`、`raw_data_snapshots`、`analysis_jobs`、`analysis_job_matches`、`analysis_results`、`model_versions`、`model_runs`、`prediction_results`。
 
-Phase 3 为 `competitions` 保存 API-Football 联赛映射；为赛季、球队、球员和比赛保存来源、供应商外部标识与 `certainty`。`matches` 的供应商缺失字段允许为 `null`，从而避免以假数据填充。
+`competitions` 使用稳定代码：`CSL`、`MLS`、`LIGA_MX`、`UCL_QUALIFIER`、`BRA_SERIE_A`。规范化实体通过外键关联统一赛事维度。`data_sources` 保存供应商元数据；`raw_data_snapshots` 保存审计用原始响应。
 
-Phase 3 迁移只能新增或兼容扩展，不得破坏 Phase 1/2 表和数据。
+## Phase 4.5 表与扩展
 
-Phase 4 的 `model_versions` 定义模型与版本；`model_runs` 关联比赛、模型版本和输入快照，并保存完整输出；`prediction_results` 保存综合方向、进球区间、BTTS、三轮比分复核和置信度。
+- `actual_results`：每场比赛唯一一条最终赛果，含 `match_id`、主客比分、`result`、`total_goals`、`btts_result`、`completed_at`、可选来源和备注。
+- `prediction_evaluations`：每个 `prediction_id` 最多一条评估，关联 `actual_result_id`，保存五项布尔命中结果、`log_loss`、`brier_score` 与 `evaluated_at`。
+- `model_performance`：以 `(model_version_id, competition_id)` 唯一，保存 `sample_count`、方向准确率、Log Loss、Brier Score 与计算时间。
+
+`model_runs.prediction_id` 将一次预测关联到其 Poisson、Dixon-Coles、Elo 与 Ensemble 运行，支持逐模型表现统计。迁移只新增或兼容扩展，不破坏 Phase 1–4 的数据。
+
+## 时间完整性
+
+`model_runs.input_snapshot_id` 指向预测输入快照。回测时该快照的 `retrieved_at` 必须不晚于比赛 `kickoff_at`；最终赛果仅用于赛后评价。

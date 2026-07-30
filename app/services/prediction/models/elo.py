@@ -14,7 +14,18 @@ class EloModel:
         home_id = features.home_team.team_id
         away_id = features.away_team.team_id
         if home_id is None or away_id is None or not features.historical_results:
-            return EloOutput(self.name, self.version, "not_available", "Historical results are required.", None, None, None)
+            return EloOutput(
+                self.name,
+                self.version,
+                "not_available",
+                "Historical results are required.",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
         ratings: dict[str, float] = {}
         appearances: dict[str, int] = {}
         for result in features.historical_results:
@@ -30,9 +41,23 @@ class EloModel:
             appearances[result.home_team_id] = appearances.get(result.home_team_id, 0) + 1
             appearances[result.away_team_id] = appearances.get(result.away_team_id, 0) + 1
         if appearances.get(home_id, 0) < 3 or appearances.get(away_id, 0) < 3:
-            return EloOutput(self.name, self.version, "not_available", "At least three historical matches per team are required.", None, None, None)
+            return EloOutput(
+                self.name,
+                self.version,
+                "not_available",
+                "At least three historical matches per team are required.",
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
         difference = ratings.get(home_id, 1500.0) - ratings.get(away_id, 1500.0)
         expected_home = self._expected(ratings.get(home_id, 1500.0) + self._home_advantage, ratings.get(away_id, 1500.0))
+        draw_probability = 0.25
+        home_probability = expected_home * (1 - draw_probability)
+        away_probability = (1 - expected_home) * (1 - draw_probability)
         return EloOutput(
             self.name,
             self.version,
@@ -41,6 +66,9 @@ class EloModel:
             difference,
             self._home_advantage,
             (expected_home - 0.5) * 0.2,
+            home_probability,
+            draw_probability,
+            away_probability,
         )
 
     @staticmethod

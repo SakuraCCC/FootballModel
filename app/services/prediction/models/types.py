@@ -39,6 +39,9 @@ class EloOutput:
     strength_difference: float | None
     home_advantage: float | None
     win_probability_adjustment: float | None
+    home_win_probability: float | None
+    draw_probability: float | None
+    away_win_probability: float | None
 
 
 def unavailable_model_output(model_name: str, model_version: str, reason: str) -> ModelOutput:

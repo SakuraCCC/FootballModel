@@ -162,6 +162,9 @@ class ModelRun(TimestampedModel, Base):
     )
     output_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     confidence: Mapped[str] = mapped_column(String(24), nullable=False)
+    prediction_id: Mapped[str | None] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="SET NULL", use_alter=True), nullable=True
+    )
 
 
 class PredictionResult(TimestampedModel, Base):
@@ -202,6 +205,10 @@ class ActualResult(TimestampedModel, Base):
     away_score: Mapped[int] = mapped_column(Integer, nullable=False)
     result_source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    total_goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    btts_result: Mapped[bool | None] = mapped_column(nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class AnalysisJob(TimestampedModel, Base):
@@ -260,3 +267,47 @@ class AnalysisResult(TimestampedModel, Base):
 
     job: Mapped[AnalysisJob] = relationship(back_populates="results")
     match: Mapped[AnalysisJobMatch] = relationship(back_populates="results")
+
+
+class PredictionEvaluation(TimestampedModel, Base):
+    __tablename__ = "prediction_evaluations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    prediction_id: Mapped[str] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
+    actual_result_id: Mapped[str] = mapped_column(
+        ForeignKey("actual_results.id", ondelete="RESTRICT"), nullable=False
+    )
+    direction_correct: Mapped[bool] = mapped_column(nullable=False)
+    score_exact_correct: Mapped[bool] = mapped_column(nullable=False)
+    score_top3_correct: Mapped[bool] = mapped_column(nullable=False)
+    goal_range_correct: Mapped[bool] = mapped_column(nullable=False)
+    btts_correct: Mapped[bool] = mapped_column(nullable=False)
+    log_loss: Mapped[float | None] = mapped_column(nullable=True)
+    brier_score: Mapped[float | None] = mapped_column(nullable=True)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ModelPerformance(TimestampedModel, Base):
+    __tablename__ = "model_performance"
+    __table_args__ = (
+        UniqueConstraint(
+            "model_version_id",
+            "competition_id",
+            name="uq_model_performance_version_competition",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    model_version_id: Mapped[str] = mapped_column(
+        ForeignKey("model_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    competition_id: Mapped[str] = mapped_column(
+        ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False
+    )
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    accuracy: Mapped[float | None] = mapped_column(nullable=True)
+    log_loss: Mapped[float | None] = mapped_column(nullable=True)
+    brier_score: Mapped[float | None] = mapped_column(nullable=True)
+    calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

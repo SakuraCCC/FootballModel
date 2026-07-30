@@ -24,9 +24,9 @@ class PredictionPipeline:
         ensemble = EnsembleModel().combine(poisson, dixon_coles, elo)
         simulation = ScoreSimulator().simulate(ensemble.model_output.score_probabilities, seed=match_id)
         confidence = assess_confidence(features, ensemble.model_output, elo, simulation)
-        self._save_model_run(features, poisson, confidence.level)
-        self._save_model_run(features, dixon_coles, confidence.level)
-        self._save_elo_run(features, elo, confidence.level)
+        poisson_run = self._save_model_run(features, poisson, confidence.level)
+        dixon_run = self._save_model_run(features, dixon_coles, confidence.level)
+        elo_run = self._save_elo_run(features, elo, confidence.level)
         ensemble_run = self._save_ensemble_run(features, ensemble, simulation, confidence.level)
         result = self._save_prediction_result(
             features.match_id,
@@ -39,6 +39,8 @@ class PredictionPipeline:
             confidence.reasons,
             ensemble_run,
         )
+        for model_run in (poisson_run, dixon_run, elo_run, ensemble_run):
+            model_run.prediction_id = result.id
         self._session.commit()
         return result
 

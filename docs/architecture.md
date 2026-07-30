@@ -2,35 +2,36 @@
 
 ## 项目目标
 
-系统长期提供可追溯的足球数据采集、标准化、分析、预测、报告与赛后复盘能力。GitHub 是唯一代码仓库；所有密钥仅通过环境变量提供。
+系统提供可追溯的足球数据采集、标准化、分析任务、预测、赛后评估与历史回测能力。GitHub 是代码唯一来源；密钥只通过环境变量提供。
 
-## 当前阶段与边界
+## 当前阶段
 
 - Phase 1：FastAPI、PostgreSQL、Redis、Celery、Docker、基础 API。
-- Phase 2：Analysis Job 生命周期和仅用于管线验证的结构化输出。
-- Phase 3：真实数据供应商适配、标准化、来源与原始响应追踪、数据质量评分。
-- Phase 4：基于已保存数据的预测特征、统计模型、模拟、复核与审计结果。
+- Phase 2：Analysis Job 生命周期、异步任务链与仅用于管线验证的 mock 结构化结果。
+- Phase 3：API-Football Provider、标准化、数据来源追踪、原始快照和数据质量评分。
+- Phase 4：基于已保存数据的 Feature Builder、Poisson、Dixon-Coles、Elo、Ensemble、比分模拟和预测结果。
+- Phase 4.5：真实赛果、赛后评估、模型表现聚合和无未来数据泄漏的历史回测。
 
-Phase 4 不实现 LLM、文章、海报或前端。任何 Phase 2 测试结果都必须保留 `mock_for_pipeline_test=true`，不得表现为真实预测。
+本阶段不实现 LLM 报告、文案、海报或前端。Phase 2 的 mock 输出必须始终带有 `mock_for_pipeline_test=true`，不得表现为真实预测。
 
 ## 分层
 
-1. API 层只验证请求、调用服务并返回标准化响应。
-2. `services/ingestion` 是第三方数据供应商的唯一入口；业务逻辑不得直接请求供应商 HTTP API。
-3. `services/normalization` 将供应商对象映射到系统统一实体。
-4. `services/quality` 评估数据完整度，不改变事实内容。
-5. PostgreSQL 保存规范化实体、来源与原始响应快照；Celery 执行异步任务。
-6. `services/prediction` 只从已保存的规范化比赛、赛果与快照生成特征、模型运行和预测结果。
+1. API 层验证请求、调用服务并返回标准化响应。
+2. `services/ingestion` 是第三方数据源的唯一入口；业务代码不得直接调用供应商 HTTP API。
+3. `services/normalization` 将供应商对象映射为统一实体；`services/quality` 只评价完整度，不改写事实。
+4. `services/prediction` 只读取已保存的比赛、球队、赛果和快照，持久化模型运行与预测结果。
+5. `services/evaluation` 根据最终赛果计算单次预测评价与按赛事聚合的模型表现。
+6. `services/backtest` 按开球时间回放已完赛比赛；每次运行只能读取 `retrieved_at <= kickoff_at` 的快照。
 
-## 数据原则
+## 数据与时间原则
 
-- 全部赛事使用统一 `competition_id`，不按赛事分库或分表。
-- 每一份外部数据必须关联来源、获取时间与 `certainty`。
-- `official`、`confirmed`、`reported`、`predicted`、`unavailable` 不可混用；`reported` 不能升级为 `confirmed`。
-- 无供应商字段一律保存为 `null` 或 `unavailable`，不以 mock 数据补全。
-- 原始 HTTP 响应保存到 `raw_data_snapshots`，以便未来追溯分析和预测输入。
-- 预测模型缺少历史赛果、比赛时间、球队或联赛进球均值时，必须返回 `not_available`，不能补造特征。
+- 全部赛事共用统一 `competition_id`，不按赛事分库或分表。
+- 外部事实必须关联来源、获取时间与 `certainty`。`reported` 不得提升为 `confirmed`。
+- 供应商缺失字段使用 `null` 或 `unavailable`，禁止补造数据。
+- 原始 HTTP 响应保存至 `raw_data_snapshots`，以支持输入追溯。
+- 预测数据不足时返回 `not_available` 并保留原因。
+- 回测绝不使用开球后的赛果、统计或快照；未来数据不可用于历史预测。
 
 ## 开发流程
 
-每次开发先阅读本文件。后续 Phase 默认从当前分支继续；完成验证后提交并合并到 `main`。已完成 Phase 的核心行为只有在兼容性或数据正确性必要时才能修改。
+每次开发前先阅读本文件。后续 Phase 直接在当前 `main` 基础上开发；验证通过后提交并推送 `main`。已完成阶段的核心行为仅在兼容性或数据正确性必要时修改。

@@ -55,7 +55,14 @@ def create_prediction_dataset(session: Session) -> Match:
         )
         session.add(match)
         session.flush()
-        session.add(ActualResult(match_id=match.id, home_score=home_score, away_score=away_score))
+        session.add(
+            ActualResult(
+                match_id=match.id,
+                home_score=home_score,
+                away_score=away_score,
+                completed_at=kickoff + timedelta(hours=2),
+            )
+        )
     target = Match(
         competition_id=competition.id,
         home_team_id=home.id,
