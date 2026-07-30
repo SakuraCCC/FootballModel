@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import ActualResult, Match
+from app.models import ActualResult, Match, PredictionResult
+from app.services.archive import PredictionArchiveService
 
 
 class ResultService:
@@ -34,6 +35,11 @@ class ResultService:
         actual.result_source_id = result_source_id
         actual.notes = notes
         self._session.commit()
+        prediction_ids = self._session.scalars(
+            self._session.query(PredictionResult.id).filter(PredictionResult.match_id == match_id).statement
+        )
+        for prediction_id in prediction_ids:
+            PredictionArchiveService(self._session).archive(prediction_id)
         return actual
 
     @staticmethod

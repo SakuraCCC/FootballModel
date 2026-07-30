@@ -43,3 +43,13 @@ Prompt 以文件方式管理：`internal_report_v2.md`、`xiaohongshu_v2.md`、`
 Celery Beat 每日依次调度比赛扫描、自动分析生成与临时文件清理。自动链路创建审计用 Analysis Job，再执行既有预测、已审校报告和固定模板海报服务；模型、评分和事实审校逻辑不在自动化中改写。
 
 报告文字可通过报告 API 返回并复制，海报通过静态 PNG URL 返回。系统不代替用户登录、发布或操作小红书等外部平台。
+
+## Phase 9 特征、校准与版本复盘
+
+Feature Builder 在已有最近五场赛果基础上增加进球、失球、射门和 xG 的每场趋势。射门和 xG 仅来自 `match_statistics`；无至少两条真实观测时趋势为 `null`，并写入缺失字段。
+
+`player_importance_scores` 的透明评分使用分钟、进球、助攻与位置权重；它是伤停影响可用前的事实基础，不能用臆测数据驱动模型。
+
+`confidence_calibration` 将已赛后评估的模型概率按 0.1 区间聚合，保存观测频率、Calibration Error 和 Reliability（`1 - error`）。各预测 model run 同时保存 `feature_version`、`data_version`、`prompt_version`、`calibration_version`，因此可按赛事、模型和版本回放表现。
+
+`prediction_archive` 固化输入摘要、模型输出、可用报告、海报路径及赛后结果，是未来训练新版本前的审计素材，不反向污染历史模型输入。

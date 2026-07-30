@@ -13,6 +13,7 @@ from app.models import (
     PredictionEvaluation,
     PredictionResult,
 )
+from app.services.evaluation.calibration import CalibrationService
 from app.services.evaluation.metrics import output_direction, probability_metrics, result_direction
 
 
@@ -39,9 +40,12 @@ class EvaluationService:
             prediction_id=prediction.id,
             actual_result_id=actual.id,
             direction_correct=prediction.direction == actual_direction,
-            score_exact_correct=prediction.primary_score == f"{actual.home_score}-{actual.away_score}",
+            score_exact_correct=prediction.primary_score
+            == f"{actual.home_score}-{actual.away_score}",
             score_top3_correct=self._score_in_top3(output, actual.home_score, actual.away_score),
-            goal_range_correct=self._goal_range_contains(prediction.goal_range, actual.home_score + actual.away_score),
+            goal_range_correct=self._goal_range_contains(
+                prediction.goal_range, actual.home_score + actual.away_score
+            ),
             btts_correct=self._btts_correct(prediction.btts, actual.home_score, actual.away_score),
             log_loss=metrics.log_loss if metrics else None,
             brier_score=metrics.brier_score if metrics else None,
@@ -53,12 +57,16 @@ class EvaluationService:
         if match is not None:
             self.refresh_model_performance(match.competition_id)
         self._session.commit()
+        if match is not None:
+            CalibrationService(self._session).refresh(match.competition_id)
         return evaluation
 
     def refresh_model_performance(self, competition_id: str) -> None:
         statement = (
             select(ModelRun, PredictionEvaluation, ActualResult, Match)
-            .join(PredictionEvaluation, PredictionEvaluation.prediction_id == ModelRun.prediction_id)
+            .join(
+                PredictionEvaluation, PredictionEvaluation.prediction_id == ModelRun.prediction_id
+            )
             .join(ActualResult, ActualResult.id == PredictionEvaluation.actual_result_id)
             .join(Match, Match.id == ModelRun.match_id)
             .where(Match.competition_id == competition_id)
@@ -67,7 +75,12 @@ class EvaluationService:
         for model_run, _evaluation, actual, _match in self._session.execute(statement):
             if model_run.output_json.get("model_status") != "available":
                 continue
-            if probability_metrics(model_run.output_json, result_direction(actual.home_score, actual.away_score)) is None:
+            if (
+                probability_metrics(
+                    model_run.output_json, result_direction(actual.home_score, actual.away_score)
+                )
+                is None
+            ):
                 continue
             grouped.setdefault(model_run.model_version_id, []).append((model_run, actual))
         for version_id, entries in grouped.items():
@@ -164,7 +177,9 @@ class EvaluationService:
 
     @staticmethod
     def _average(entries: list[PredictionEvaluation], attribute: str) -> float | None:
-        values = [getattr(entry, attribute) for entry in entries if getattr(entry, attribute) is not None]
+        values = [
+            getattr(entry, attribute) for entry in entries if getattr(entry, attribute) is not None
+        ]
         return sum(values) / len(values) if values else None
 
     def _model_output(self, prediction: PredictionResult) -> dict:
@@ -175,7 +190,9 @@ class EvaluationService:
         actual = (home_score, away_score)
         scores = output.get("score_probabilities", [])
         return actual in [
-            (item.get("home_goals"), item.get("away_goals")) for item in scores[:3] if isinstance(item, dict)
+            (item.get("home_goals"), item.get("away_goals"))
+            for item in scores[:3]
+            if isinstance(item, dict)
         ]
 
     @staticmethod

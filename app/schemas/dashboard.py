@@ -13,6 +13,8 @@ class DashboardSummaryRead(BaseModel):
     total_reports: int
     total_posters: int
     competition_counts: list[CompetitionCount]
+    today_pending_matches: int
+    today_completed_automations: int
 
 
 class ContentAssetSummaryRead(BaseModel):

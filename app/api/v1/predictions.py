@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
 from app.models import ModelRun, PredictionResult
 from app.schemas.prediction import PredictionRead, PredictionRunRequest, PredictionRunResponse
+from app.services.archive import PredictionArchiveService
 from app.services.prediction.pipeline import PredictionPipeline
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
@@ -21,13 +22,19 @@ def run_prediction(
 
 
 @router.get("/{prediction_id}", response_model=PredictionRead)
-def get_prediction(prediction_id: str, session: Session = Depends(get_db_session)) -> PredictionRead:
+def get_prediction(
+    prediction_id: str, session: Session = Depends(get_db_session)
+) -> PredictionRead:
     prediction = session.get(PredictionResult, prediction_id)
     if prediction is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prediction was not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prediction was not found."
+        )
     model_run = session.get(ModelRun, prediction.model_run_id)
     if model_run is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Prediction model output is unavailable.")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Prediction model output is unavailable."
+        )
     return PredictionRead(
         id=prediction.id,
         match_id=prediction.match_id,
@@ -44,3 +51,41 @@ def get_prediction(prediction_id: str, session: Session = Depends(get_db_session
         created_at=prediction.created_at,
         model_output=model_run.output_json,
     )
+
+
+@router.post("/{prediction_id}/archive")
+def archive_prediction(prediction_id: str, session: Session = Depends(get_db_session)) -> dict:
+    try:
+        archive = PredictionArchiveService(session).archive(prediction_id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    return {
+        "archive_id": archive.id,
+        "prediction_id": archive.prediction_id,
+        "archived_at": archive.archived_at,
+    }
+
+
+@router.get("/{prediction_id}/archive")
+def get_prediction_archive(prediction_id: str, session: Session = Depends(get_db_session)) -> dict:
+    from app.models import PredictionArchive
+
+    archive = (
+        session.query(PredictionArchive)
+        .filter(PredictionArchive.prediction_id == prediction_id)
+        .one_or_none()
+    )
+    if archive is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Prediction archive was not found."
+        )
+    return {
+        "id": archive.id,
+        "prediction_id": archive.prediction_id,
+        "input_summary": archive.input_summary,
+        "model_output": archive.model_output,
+        "report_content": archive.report_content,
+        "poster_path": archive.poster_path,
+        "actual_result": archive.actual_result,
+        "archived_at": archive.archived_at,
+    }

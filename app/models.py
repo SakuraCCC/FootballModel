@@ -24,7 +24,9 @@ def uuid_string() -> str:
 
 
 class TimestampedModel:
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
@@ -48,14 +50,20 @@ class Competition(TimestampedModel, Base):
 
 class Season(TimestampedModel, Base):
     __tablename__ = "seasons"
-    __table_args__ = (UniqueConstraint("competition_id", "code", name="uq_seasons_competition_code"),)
+    __table_args__ = (
+        UniqueConstraint("competition_id", "code", name="uq_seasons_competition_code"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    competition_id: Mapped[str] = mapped_column(ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False)
+    competition_id: Mapped[str] = mapped_column(
+        ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False
+    )
     code: Mapped[str] = mapped_column(String(32), nullable=False)
     starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
-    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
+    )
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
     competition: Mapped[Competition] = relationship(back_populates="seasons")
@@ -64,14 +72,18 @@ class Season(TimestampedModel, Base):
 
 class Team(TimestampedModel, Base):
     __tablename__ = "teams"
-    __table_args__ = (UniqueConstraint("canonical_name", "country_code", name="uq_teams_name_country"),)
+    __table_args__ = (
+        UniqueConstraint("canonical_name", "country_code", name="uq_teams_name_country"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
     canonical_name: Mapped[str] = mapped_column(String(160), nullable=False)
     country_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
     normalized_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
+    )
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
 
@@ -83,14 +95,24 @@ class Match(TimestampedModel, Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    competition_id: Mapped[str] = mapped_column(ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False)
-    season_id: Mapped[str | None] = mapped_column(ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=True)
-    home_team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
-    away_team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
+    competition_id: Mapped[str] = mapped_column(
+        ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False
+    )
+    season_id: Mapped[str | None] = mapped_column(
+        ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=True
+    )
+    home_team_id: Mapped[str | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True
+    )
+    away_team_id: Mapped[str | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True
+    )
     kickoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(24), default="scheduled", nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
+    )
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
     competition: Mapped[Competition] = relationship(back_populates="matches")
@@ -113,7 +135,9 @@ class DataSource(TimestampedModel, Base):
 
 class RawDataSnapshot(TimestampedModel, Base):
     __tablename__ = "raw_data_snapshots"
-    __table_args__ = (Index("ix_raw_data_snapshots_source_retrieved", "data_source_id", "retrieved_at"),)
+    __table_args__ = (
+        Index("ix_raw_data_snapshots_source_retrieved", "data_source_id", "retrieved_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
     data_source_id: Mapped[str] = mapped_column(
@@ -133,8 +157,56 @@ class Player(TimestampedModel, Base):
     canonical_name: Mapped[str] = mapped_column(String(160), nullable=False)
     normalized_name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
-    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True
+    )
+    source_id: Mapped[str | None] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
+    )
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
+
+
+class MatchStatistic(TimestampedModel, Base):
+    """Provider supplied match statistics.  ``None`` means unavailable, never inferred."""
+
+    __tablename__ = "match_statistics"
+    __table_args__ = (
+        UniqueConstraint("match_id", "team_id", name="uq_match_statistics_match_team"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False
+    )
+    team_id: Mapped[str] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
+    )
+    shots: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shots_on_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    possession: Mapped[float | None] = mapped_column(nullable=True)
+    corners: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    xg: Mapped[float | None] = mapped_column(nullable=True)
+    xga: Mapped[float | None] = mapped_column(nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
+    source_snapshot_id: Mapped[str | None] = mapped_column(
+        ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class PlayerImportanceScore(TimestampedModel, Base):
+    __tablename__ = "player_importance_scores"
+    __table_args__ = (UniqueConstraint("player_id", name="uq_player_importance_scores_player"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    player_id: Mapped[str] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"), nullable=False
+    )
+    minutes_played: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assists: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    position: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    position_weight: Mapped[float | None] = mapped_column(nullable=True)
+    score: Mapped[float | None] = mapped_column(nullable=True)
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
 
@@ -146,6 +218,10 @@ class ModelVersion(TimestampedModel, Base):
     name: Mapped[str] = mapped_column(String(80), nullable=False)
     version: Mapped[str] = mapped_column(String(80), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    calibration_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class ModelRun(TimestampedModel, Base):
@@ -153,7 +229,9 @@ class ModelRun(TimestampedModel, Base):
     __table_args__ = (Index("ix_model_runs_match_created", "match_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False
+    )
     model_version_id: Mapped[str] = mapped_column(
         ForeignKey("model_versions.id", ondelete="RESTRICT"), nullable=False
     )
@@ -162,6 +240,10 @@ class ModelRun(TimestampedModel, Base):
     )
     output_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     confidence: Mapped[str] = mapped_column(String(24), nullable=False)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    calibration_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
     prediction_id: Mapped[str | None] = mapped_column(
         ForeignKey("prediction_results.id", ondelete="SET NULL", use_alter=True), nullable=True
     )
@@ -171,8 +253,12 @@ class PredictionResult(TimestampedModel, Base):
     __tablename__ = "prediction_results"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
-    model_run_id: Mapped[str] = mapped_column(ForeignKey("model_runs.id", ondelete="RESTRICT"), nullable=False)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False
+    )
+    model_run_id: Mapped[str] = mapped_column(
+        ForeignKey("model_runs.id", ondelete="RESTRICT"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(24), nullable=False)
     direction: Mapped[str | None] = mapped_column(String(64), nullable=True)
     goal_range: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -189,7 +275,9 @@ class Prediction(TimestampedModel, Base):
     __table_args__ = (Index("ix_predictions_match_created", "match_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False
+    )
     model_version: Mapped[str] = mapped_column(String(80), nullable=False)
     data_snapshot_ref: Mapped[str] = mapped_column(String(255), nullable=False)
     output_version: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -200,10 +288,14 @@ class ActualResult(TimestampedModel, Base):
     __tablename__ = "actual_results"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), unique=True, nullable=False)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
     home_score: Mapped[int] = mapped_column(Integer, nullable=False)
     away_score: Mapped[int] = mapped_column(Integer, nullable=False)
-    result_source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    result_source_id: Mapped[str | None] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     result: Mapped[str | None] = mapped_column(String(16), nullable=True)
     total_goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -334,7 +426,9 @@ class PosterOutput(TimestampedModel, Base):
     __table_args__ = (Index("ix_poster_outputs_report_created", "report_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    report_id: Mapped[str] = mapped_column(ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False)
+    report_id: Mapped[str] = mapped_column(
+        ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False
+    )
     prediction_id: Mapped[str] = mapped_column(
         ForeignKey("prediction_results.id", ondelete="RESTRICT"), nullable=False
     )
@@ -347,7 +441,9 @@ class ContentPublishRecord(TimestampedModel, Base):
     __tablename__ = "content_publish_records"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    report_id: Mapped[str] = mapped_column(ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False)
+    report_id: Mapped[str] = mapped_column(
+        ForeignKey("report_outputs.id", ondelete="RESTRICT"), nullable=False
+    )
     poster_id: Mapped[str | None] = mapped_column(
         ForeignKey("poster_outputs.id", ondelete="RESTRICT"), nullable=True
     )
@@ -364,7 +460,9 @@ class AutomationRun(TimestampedModel, Base):
     __table_args__ = (Index("ix_automation_runs_status_created", "status", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
-    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), unique=True, nullable=False)
+    match_id: Mapped[str] = mapped_column(
+        ForeignKey("matches.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
     analysis_job_id: Mapped[str | None] = mapped_column(
         ForeignKey("analysis_jobs.id", ondelete="SET NULL"), nullable=True
     )
@@ -382,3 +480,57 @@ class AutomationRun(TimestampedModel, Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failed_step: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_retry_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SchedulerHeartbeat(TimestampedModel, Base):
+    __tablename__ = "scheduler_heartbeats"
+    __table_args__ = (UniqueConstraint("task_name", name="uq_scheduler_heartbeats_task_name"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    task_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    last_executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class ConfidenceCalibration(TimestampedModel, Base):
+    __tablename__ = "confidence_calibration"
+    __table_args__ = (
+        UniqueConstraint(
+            "model_version_id",
+            "competition_id",
+            "probability_bin",
+            name="uq_confidence_calibration_bin",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    model_version_id: Mapped[str] = mapped_column(
+        ForeignKey("model_versions.id", ondelete="RESTRICT"), nullable=False
+    )
+    competition_id: Mapped[str] = mapped_column(
+        ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False
+    )
+    probability_bin: Mapped[str] = mapped_column(String(16), nullable=False)
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    observed_frequency: Mapped[float | None] = mapped_column(nullable=True)
+    calibration_error: Mapped[float | None] = mapped_column(nullable=True)
+    reliability: Mapped[float | None] = mapped_column(nullable=True)
+    calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PredictionArchive(TimestampedModel, Base):
+    __tablename__ = "prediction_archive"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    prediction_id: Mapped[str] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
+    input_summary: Mapped[dict] = mapped_column(JSON, nullable=False)
+    model_output: Mapped[dict] = mapped_column(JSON, nullable=False)
+    report_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    poster_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    actual_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -32,3 +32,12 @@
 ## 时间完整性
 
 `model_runs.input_snapshot_id` 指向预测输入快照。回测时该快照的 `retrieved_at` 必须不晚于比赛 `kickoff_at`；最终赛果仅用于赛后评价。
+
+## Phase 9 表与字段
+
+- `match_statistics`：每场、每队真实统计及其 certainty/source snapshot；字段缺失保存 `NULL`。
+- `player_importance_scores`：球员分钟、进球、助攻、位置、位置权重和透明影响分数；缺少原始统计时 score 为 `NULL`。
+- `scheduler_heartbeats`：每个 Beat 任务最近执行时间和 Celery task ID，用于 scheduler health。
+- `confidence_calibration`：模型版本、赛事、概率桶、样本量、观测频率、校准误差、可靠性和计算时间。
+- `prediction_archive`：每个 prediction 唯一的输入摘要、模型输出、报告正文、海报路径、赛后结果及归档时间。
+- `automation_runs` 新增 `failure_reason`、`failed_step`、`last_retry_time`；`model_versions` 和 `model_runs` 新增 feature/data/prompt/calibration 版本维度。

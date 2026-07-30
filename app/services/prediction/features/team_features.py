@@ -14,3 +14,7 @@ class TeamFeatures:
     goal_difference: int | None
     rest_days: int | None
     historical_match_count: int
+    recent_goals_trend: float | None = None
+    recent_conceded_trend: float | None = None
+    recent_shots_trend: float | None = None
+    recent_xg_trend: float | None = None

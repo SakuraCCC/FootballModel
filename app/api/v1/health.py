@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from app.api.deps import get_health_service
-from app.schemas.health import HealthResponse, ServiceHealthResponse
+from app.schemas.health import HealthResponse, SchedulerHealthResponse, ServiceHealthResponse
 from app.services.health import HealthService
 
 router = APIRouter(tags=["system"])
@@ -15,10 +15,14 @@ def health_check(service: HealthService = Depends(get_health_service)) -> Health
 
 
 @router.get("/ready", response_model=HealthResponse)
-def readiness_check(service: HealthService = Depends(get_health_service)) -> HealthResponse | JSONResponse:
+def readiness_check(
+    service: HealthService = Depends(get_health_service),
+) -> HealthResponse | JSONResponse:
     result = service.check()
     if result.status != "ok":
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump())
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump()
+        )
     return result
 
 
@@ -26,7 +30,9 @@ def readiness_check(service: HealthService = Depends(get_health_service)) -> Hea
 def database_health(service: HealthService = Depends(get_health_service)) -> ServiceHealthResponse:
     result = service.database_health()
     if result.status != "ok":
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump())
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump()
+        )
     return result
 
 
@@ -34,5 +40,19 @@ def database_health(service: HealthService = Depends(get_health_service)) -> Ser
 def worker_health(service: HealthService = Depends(get_health_service)) -> ServiceHealthResponse:
     result = service.worker_health()
     if result.status != "ok":
-        return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump())
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump()
+        )
+    return result
+
+
+@router.get("/scheduler-health", response_model=SchedulerHealthResponse)
+def scheduler_health(
+    service: HealthService = Depends(get_health_service),
+) -> SchedulerHealthResponse | JSONResponse:
+    result = service.scheduler_health()
+    if result.status != "ok":
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=result.model_dump()
+        )
     return result

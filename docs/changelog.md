@@ -1,5 +1,14 @@
 # Changelog
 
+## Phase 9 — Production Hardening & Model Optimization
+
+- Added scheduler health with PostgreSQL, Redis, and Beat-heartbeat status; added explicit provider health and recent automation failure APIs.
+- Added structured correlation IDs to JSON logs and persisted failure reason, failed step, and last retry timestamp for automation runs.
+- Added source-preserving match statistics, player importance scoring storage, recent form trends, model provenance versions, reliability calibration, and prediction archives.
+- Added a read-only lightweight operations dashboard at `/api/v1/dashboard/admin`; reports and PNG assets remain available through existing APIs, with no third-party publication automation.
+- Added Phase 9 tests for scheduler health, provider status, automation failures, calibration, archive persistence, and unavailable player-input handling.
+- Real production E2E is documented as pending because no local API-Football or LLM credential was configured; no mock was substituted.
+
 ## Phase 7 + Phase 8 MVP — 自动化运营与生产部署基础
 
 - 新增未来 24–72 小时比赛扫描、Celery Beat 的每日扫描/生成/清理任务和可审计自动化流水线。

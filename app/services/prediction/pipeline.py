@@ -22,7 +22,9 @@ class PredictionPipeline:
         dixon_coles = DixonColesModel().predict(features)
         elo = EloModel().predict(features)
         ensemble = EnsembleModel().combine(poisson, dixon_coles, elo)
-        simulation = ScoreSimulator().simulate(ensemble.model_output.score_probabilities, seed=match_id)
+        simulation = ScoreSimulator().simulate(
+            ensemble.model_output.score_probabilities, seed=match_id
+        )
         confidence = assess_confidence(features, ensemble.model_output, elo, simulation)
         poisson_run = self._save_model_run(features, poisson, confidence.level)
         dixon_run = self._save_model_run(features, dixon_coles, confidence.level)
@@ -45,32 +47,46 @@ class PredictionPipeline:
         return result
 
     def _save_model_run(self, features, output: ModelOutput, confidence: str) -> ModelRun:
-        version = self._model_version(output.model_name, output.model_version, self._description(output.model_name))
+        version = self._model_version(
+            output.model_name, output.model_version, self._description(output.model_name)
+        )
         run = ModelRun(
             match_id=features.match_id,
             model_version_id=version.id,
             input_snapshot_id=features.input_snapshot_id,
             output_json=self._model_output_json(output),
             confidence=confidence,
+            feature_version="feature_v2",
+            data_version=features.input_snapshot_id or "unavailable",
+            prompt_version="not_applicable",
+            calibration_version="calibration_v1",
         )
         self._session.add(run)
         self._session.flush()
         return run
 
     def _save_elo_run(self, features, output: EloOutput, confidence: str) -> ModelRun:
-        version = self._model_version(output.model_name, output.model_version, self._description(output.model_name))
+        version = self._model_version(
+            output.model_name, output.model_version, self._description(output.model_name)
+        )
         run = ModelRun(
             match_id=features.match_id,
             model_version_id=version.id,
             input_snapshot_id=features.input_snapshot_id,
             output_json=asdict(output),
             confidence=confidence,
+            feature_version="feature_v2",
+            data_version=features.input_snapshot_id or "unavailable",
+            prompt_version="not_applicable",
+            calibration_version="calibration_v1",
         )
         self._session.add(run)
         self._session.flush()
         return run
 
-    def _save_ensemble_run(self, features, output: EnsembleOutput, simulation, confidence: str) -> ModelRun:
+    def _save_ensemble_run(
+        self, features, output: EnsembleOutput, simulation, confidence: str
+    ) -> ModelRun:
         model_output = output.model_output
         version = self._model_version(
             model_output.model_name,
@@ -82,7 +98,11 @@ class PredictionPipeline:
             {
                 "total_goal_range": output.total_goal_range,
                 "btts": output.btts,
-                "simulation": {"simulations": simulation.simulations, "scores": [asdict(score) for score in simulation.scores], "low_confidence": simulation.low_confidence},
+                "simulation": {
+                    "simulations": simulation.simulations,
+                    "scores": [asdict(score) for score in simulation.scores],
+                    "low_confidence": simulation.low_confidence,
+                },
             }
         )
         run = ModelRun(
@@ -91,6 +111,10 @@ class PredictionPipeline:
             input_snapshot_id=features.input_snapshot_id,
             output_json=payload,
             confidence=confidence,
+            feature_version="feature_v2",
+            data_version=features.input_snapshot_id or "unavailable",
+            prompt_version="not_applicable",
+            calibration_version="calibration_v1",
         )
         self._session.add(run)
         self._session.flush()
@@ -145,7 +169,15 @@ class PredictionPipeline:
             select(ModelVersion).where(ModelVersion.name == name, ModelVersion.version == version)
         )
         if record is None:
-            record = ModelVersion(name=name, version=version, description=description)
+            record = ModelVersion(
+                name=name,
+                version=version,
+                description=description,
+                feature_version="feature_v2",
+                data_version="snapshot_bound",
+                prompt_version="not_applicable",
+                calibration_version="calibration_v1",
+            )
             self._session.add(record)
             self._session.flush()
         return record

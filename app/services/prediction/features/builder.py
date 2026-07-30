@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import ActualResult, Match, RawDataSnapshot
+from app.models import ActualResult, Match, MatchStatistic, RawDataSnapshot
 from app.services.prediction.features.match_features import HistoricalResult, MatchFeatures
 from app.services.prediction.features.team_features import TeamFeatures
 
@@ -20,10 +20,14 @@ class FeatureBuilder:
             raise ValueError("Match was not found")
         history = self._historical_results(match)
         home_team = self._team_features(match.home_team_id, match.kickoff_at, history, is_home=True)
-        away_team = self._team_features(match.away_team_id, match.kickoff_at, history, is_home=False)
+        away_team = self._team_features(
+            match.away_team_id, match.kickoff_at, history, is_home=False
+        )
         league_average = self._league_average_goals(history)
         snapshot_id = self._latest_snapshot_id(match.source_id, match.kickoff_at)
-        missing_fields = self._missing_fields(match, home_team, away_team, league_average, snapshot_id)
+        missing_fields = self._missing_fields(
+            match, home_team, away_team, league_average, snapshot_id
+        )
         return MatchFeatures(
             match_id=match.id,
             competition_id=match.competition_id,
@@ -81,8 +85,27 @@ class FeatureBuilder:
         form = [self._result_for_team(item, team_id) for item in team_history]
         goals_for = [self._goals_for(item, team_id) for item in team_history]
         goals_against = [self._goals_against(item, team_id) for item in team_history]
-        home_form = [self._result_for_team(item, team_id) for item in team_history if item.home_team_id == team_id]
-        away_form = [self._result_for_team(item, team_id) for item in team_history if item.away_team_id == team_id]
+        statistics = self._statistics_for(team_id, [item.match_id for item in team_history])
+        shots = [
+            statistics[item.match_id].shots
+            for item in team_history
+            if statistics.get(item.match_id) and statistics[item.match_id].shots is not None
+        ]
+        xg = [
+            statistics[item.match_id].xg
+            for item in team_history
+            if statistics.get(item.match_id) and statistics[item.match_id].xg is not None
+        ]
+        home_form = [
+            self._result_for_team(item, team_id)
+            for item in team_history
+            if item.home_team_id == team_id
+        ]
+        away_form = [
+            self._result_for_team(item, team_id)
+            for item in team_history
+            if item.away_team_id == team_id
+        ]
         latest = team_history[-1].kickoff_at
         rest_days = (kickoff_at.date() - latest.date()).days if kickoff_at else None
         return TeamFeatures(
@@ -97,7 +120,27 @@ class FeatureBuilder:
             goal_difference=None,
             rest_days=rest_days,
             historical_match_count=len(team_history),
+            recent_goals_trend=self._trend(goals_for),
+            recent_conceded_trend=self._trend(goals_against),
+            recent_shots_trend=self._trend(shots),
+            recent_xg_trend=self._trend(xg),
         )
+
+    def _statistics_for(self, team_id: str, match_ids: list[str]) -> dict[str, MatchStatistic]:
+        if not match_ids:
+            return {}
+        rows = self._session.scalars(
+            select(MatchStatistic).where(
+                MatchStatistic.team_id == team_id, MatchStatistic.match_id.in_(match_ids)
+            )
+        )
+        return {item.match_id: item for item in rows}
+
+    @staticmethod
+    def _trend(values: list[float | int]) -> float | None:
+        if len(values) < 2:
+            return None
+        return round((float(values[-1]) - float(values[0])) / (len(values) - 1), 4)
 
     @staticmethod
     def _result_for_team(item: HistoricalResult, team_id: str) -> str:
@@ -119,9 +162,7 @@ class FeatureBuilder:
             return None
         return sum(item.home_score + item.away_score for item in history) / len(history)
 
-    def _latest_snapshot_id(
-        self, source_id: str | None, kickoff_at: datetime | None
-    ) -> str | None:
+    def _latest_snapshot_id(self, source_id: str | None, kickoff_at: datetime | None) -> str | None:
         if source_id is None or kickoff_at is None:
             return None
         snapshot = self._session.scalar(
@@ -156,6 +197,14 @@ class FeatureBuilder:
         if snapshot_id is None:
             fields.append("input_snapshot")
         fields.extend(["league_rank", "points", "goal_difference", "injuries"])
+        if home_team.recent_shots_trend is None:
+            fields.append("home_team.shots")
+        if away_team.recent_shots_trend is None:
+            fields.append("away_team.shots")
+        if home_team.recent_xg_trend is None:
+            fields.append("home_team.xg")
+        if away_team.recent_xg_trend is None:
+            fields.append("away_team.xg")
         return fields
 
     @staticmethod

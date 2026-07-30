@@ -46,3 +46,12 @@ Phase 7–8 不执行小红书自动发布，不接触任何第三方平台账�
 ## 开发流程
 
 每次开发前先阅读本文件。后续 Phase 直接在当前 `main` 基础上开发；验证通过后提交并推送 `main`。已完成阶段的核心行为仅在兼容性或数据正确性必要时修改。
+
+## Phase 9：生产加固与模型优化
+
+- 健康检查分为 `/health`、`/database-health`、`/worker-health` 与 `/scheduler-health`；最后一项同时验证 PostgreSQL、Redis 与最近 36 小时的 Beat 心跳。
+- 自动化链路的失败记录保留 `task_id`、失败步骤、失败原因、重试次数和最近重试时间。结构化日志保留 task、比赛、预测、报告和海报关联 ID。
+- Provider 状态由独立 `services/provider_health` 提供。未配置 API Key 时明确返回 `unavailable`，绝不尝试伪造连通性或数据质量。
+- 历史统计只保存供应商真实返回的值；shots、shots_on_target、possession、corners、xG、xGA 不存在时保持 `null`，Feature Builder 也返回 `null` 并降低完整度。
+- 每个 model run 保存 feature/data/prompt/calibration 四个版本维度；校准、归档和赛后评价只读取既有持久化数据。
+- `/api/v1/dashboard/admin` 是只读的轻量运营页面；图片继续使用 poster API 返回的 PNG URL，文案使用 report API 返回的内容，不涉及第三方账号或自动发布。

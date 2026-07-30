@@ -1,9 +1,11 @@
 import logging
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AnalysisJob, AnalysisJobMatch, AutomationRun, Competition, Match, Team
+from app.services.archive import PredictionArchiveService
 from app.services.posters import PosterService
 from app.services.prediction.pipeline import PredictionPipeline
 from app.services.reporting import ReportService
@@ -17,11 +19,15 @@ class AutomationPipeline:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def run(self, match_id: str, *, task_id: str | None = None, retry_count: int = 0) -> AutomationRun:
+    def run(
+        self, match_id: str, *, task_id: str | None = None, retry_count: int = 0
+    ) -> AutomationRun:
         run = self._get_or_create_run(match_id)
         try:
             match, competition, home, away = self._match_context(match_id)
-            self._update(run, "running", "create_analysis_job", task_id=task_id, retry_count=retry_count)
+            self._update(
+                run, "running", "create_analysis_job", task_id=task_id, retry_count=retry_count
+            )
             if run.analysis_job_id is None:
                 job = AnalysisJob(
                     competition_name=competition.name,
@@ -57,6 +63,7 @@ class AutomationPipeline:
             self._update(run, "running", "poster", task_id=task_id, retry_count=retry_count)
             poster = PosterService(self._session).generate(report.report_id)
             run.poster_id = self._poster_id(poster.file_path)
+            PredictionArchiveService(self._session).archive(prediction.id)
             job = self._session.get(AnalysisJob, run.analysis_job_id)
             if job is not None:
                 job.status = "completed"
@@ -73,8 +80,11 @@ class AutomationPipeline:
                 task_id=task_id,
                 retry_count=retry_count,
                 error_message=str(error)[:1000],
+                failed_step=run.current_step,
             )
-            logger.exception("automation_pipeline_failed match_id=%s retry_count=%s", match_id, retry_count)
+            logger.exception(
+                "automation_pipeline_failed", extra={"task_id": task_id, "match_id": match_id}
+            )
             raise
 
     def _get_or_create_run(self, match_id: str) -> AutomationRun:
@@ -105,13 +115,31 @@ class AutomationPipeline:
         task_id: str | None,
         retry_count: int,
         error_message: str | None = None,
+        failed_step: str | None = None,
     ) -> None:
         run.status = status
         run.current_step = step
         run.task_id = task_id
         run.retry_count = retry_count
         run.error_message = error_message
+        if status == "failed":
+            run.failure_reason = error_message
+            run.failed_step = failed_step or step
+            run.last_retry_time = datetime.now(UTC) if retry_count else None
+        else:
+            run.failure_reason = None
+            run.failed_step = None
         self._session.commit()
+        logger.info(
+            "automation_pipeline_step",
+            extra={
+                "task_id": task_id,
+                "match_id": run.match_id,
+                "prediction_id": run.prediction_id,
+                "report_id": run.report_id,
+                "poster_id": run.poster_id,
+            },
+        )
 
     @staticmethod
     def _poster_id(file_path: str) -> str:

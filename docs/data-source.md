@@ -30,3 +30,11 @@ Phase 6 海报不再读取供应商 API，也不生成或修改事实。它只�
 ## 自动化扫描
 
 Phase 7 仅扫描已由数据接入层保存、且开球时间在未来 24–72 小时内的比赛。扫描器不直接调用第三方 API；失败重试也只重用已入库数据和来源快照。已完成或正在执行的自动化记录不会重复入队。
+
+## Phase 9 数据质量与供应商健康
+
+`match_statistics` 按 `(match_id, team_id)` 保存比赛级统计：`shots`、`shots_on_target`、`possession`、`corners`、`xg`、`xga` 与来源快照。任何 API 未提供的字段均为 `null`，并以 `certainty=unavailable` 表达，禁止估算或补全。
+
+`GET /api/v1/providers/status` 返回供应商可访问性、响应时间、最近快照时间和最近比赛字段完整度。未设置 `API_FOOTBALL_KEY` 会返回 `unavailable`；该状态不是“健康”，也不会消耗 API 配额。
+
+球员影响评分只接受已获取的分钟、进球、助攻及位置。没有分钟数据时评分为 `null`，伤停影响在缺少可追溯球员数据时不会进入预测。

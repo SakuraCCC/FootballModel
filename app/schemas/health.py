@@ -15,3 +15,11 @@ class HealthResponse(BaseModel):
 
 class ServiceHealthResponse(BaseModel):
     status: Literal["ok", "error"]
+
+
+class SchedulerHealthResponse(BaseModel):
+    status: Literal["ok", "error"]
+    database: DependencyStatus
+    redis: DependencyStatus
+    beat_status: Literal["ok", "error"]
+    last_task_execution: str | None = None

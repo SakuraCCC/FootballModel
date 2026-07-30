@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    AutomationRun,
     Competition,
     ContentPublishRecord,
     Match,
@@ -34,6 +35,18 @@ class DashboardService:
                 {"competition_code": code, "prediction_count": count}
                 for code, count in competition_counts
             ],
+            "today_pending_matches": self._session.scalar(
+                select(func.count())
+                .select_from(AutomationRun)
+                .where(AutomationRun.status.in_(("pending", "running")))
+            )
+            or 0,
+            "today_completed_automations": self._session.scalar(
+                select(func.count())
+                .select_from(AutomationRun)
+                .where(AutomationRun.status == "completed")
+            )
+            or 0,
         }
 
     def content_assets(
@@ -51,9 +64,13 @@ class DashboardService:
             .join(Competition, Competition.id == Match.competition_id)
         )
         if start_date:
-            statement = statement.where(Match.kickoff_at >= datetime.combine(start_date, time.min, UTC))
+            statement = statement.where(
+                Match.kickoff_at >= datetime.combine(start_date, time.min, UTC)
+            )
         if end_date:
-            statement = statement.where(Match.kickoff_at < datetime.combine(end_date, time.min, UTC))
+            statement = statement.where(
+                Match.kickoff_at < datetime.combine(end_date, time.min, UTC)
+            )
         if competition_code:
             statement = statement.where(Competition.code == competition_code.upper())
         if match_id:
@@ -61,7 +78,11 @@ class DashboardService:
         rows = list(self._session.execute(statement))
         report_ids = [report.id for report, _prediction, _match, _competition in rows]
         poster_count = (
-            self._session.scalar(select(func.count()).select_from(PosterOutput).where(PosterOutput.report_id.in_(report_ids)))
+            self._session.scalar(
+                select(func.count())
+                .select_from(PosterOutput)
+                .where(PosterOutput.report_id.in_(report_ids))
+            )
             if report_ids
             else 0
         )
@@ -69,7 +90,10 @@ class DashboardService:
             self._session.scalar(
                 select(func.count())
                 .select_from(ContentPublishRecord)
-                .where(ContentPublishRecord.report_id.in_(report_ids), ContentPublishRecord.publish_time.is_not(None))
+                .where(
+                    ContentPublishRecord.report_id.in_(report_ids),
+                    ContentPublishRecord.publish_time.is_not(None),
+                )
             )
             if report_ids
             else 0
@@ -81,8 +105,8 @@ class DashboardService:
             "unpublished_count": len(report_ids) - (published_count or 0),
         }
 
-    def model_performance(self) -> dict:
-        return EvaluationService(self._session).summary()
+    def model_performance(self, competition_code: str | None = None) -> dict:
+        return EvaluationService(self._session).summary(competition_code=competition_code)
 
     def _count(self, model) -> int:
         return self._session.scalar(select(func.count()).select_from(model)) or 0
