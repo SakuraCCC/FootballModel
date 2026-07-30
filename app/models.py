@@ -38,6 +38,9 @@ class Competition(TimestampedModel, Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     region: Mapped[str] = mapped_column(String(80), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    api_football_league_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    provider_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
     seasons: Mapped[list["Season"]] = relationship(back_populates="competition")
     matches: Mapped[list["Match"]] = relationship(back_populates="competition")
@@ -52,6 +55,8 @@ class Season(TimestampedModel, Base):
     code: Mapped[str] = mapped_column(String(32), nullable=False)
     starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
     competition: Mapped[Competition] = relationship(back_populates="seasons")
     matches: Mapped[list["Match"]] = relationship(back_populates="season")
@@ -64,6 +69,10 @@ class Team(TimestampedModel, Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
     canonical_name: Mapped[str] = mapped_column(String(160), nullable=False)
     country_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    normalized_name: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
 
 class Match(TimestampedModel, Base):
@@ -76,10 +85,13 @@ class Match(TimestampedModel, Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
     competition_id: Mapped[str] = mapped_column(ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False)
     season_id: Mapped[str | None] = mapped_column(ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=True)
-    home_team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False)
-    away_team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False)
-    kickoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    home_team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
+    away_team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
+    kickoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(24), default="scheduled", nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
     competition: Mapped[Competition] = relationship(back_populates="matches")
     season: Mapped[Season | None] = relationship(back_populates="matches")
@@ -90,10 +102,40 @@ class DataSource(TimestampedModel, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    source_name: Mapped[str] = mapped_column(String(120), nullable=False)
     source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_tier: Mapped[str] = mapped_column(String(32), nullable=False, default="secondary")
+    api_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     reliability_level: Mapped[str] = mapped_column(String(24), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+
+
+class RawDataSnapshot(TimestampedModel, Base):
+    __tablename__ = "raw_data_snapshots"
+    __table_args__ = (Index("ix_raw_data_snapshots_source_retrieved", "data_source_id", "retrieved_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    data_source_id: Mapped[str] = mapped_column(
+        ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(120), nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
+    request_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    response_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class Player(TimestampedModel, Base):
+    __tablename__ = "players"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    canonical_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
 
 
 class Prediction(TimestampedModel, Base):
