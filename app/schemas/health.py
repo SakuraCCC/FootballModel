@@ -11,3 +11,7 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     database: DependencyStatus
     redis: DependencyStatus
+
+
+class ServiceHealthResponse(BaseModel):
+    status: Literal["ok", "error"]

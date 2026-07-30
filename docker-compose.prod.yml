@@ -1,0 +1,77 @@
+services:
+  api:
+    build: .
+    env_file: .env.production
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      POSTER_OUTPUT_DIR: /app/generated/posters
+      TEMPORARY_FILE_DIR: /app/generated/tmp
+    volumes: ["poster_data:/app/generated"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+  worker:
+    build: .
+    env_file: .env.production
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      POSTER_OUTPUT_DIR: /app/generated/posters
+      TEMPORARY_FILE_DIR: /app/generated/tmp
+    volumes: ["poster_data:/app/generated"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+  beat:
+    build: .
+    env_file: .env.production
+    command: ["celery", "-A", "app.worker.celery_app", "beat", "--loglevel=INFO"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+  db:
+    image: postgres:16-alpine
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["${NGINX_PORT:-80}:80"]
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - poster_data:/srv/generated:ro
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  poster_data:

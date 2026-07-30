@@ -1,5 +1,12 @@
 # Changelog
 
+## Phase 7 + Phase 8 MVP — 自动化运营与生产部署基础
+
+- 新增未来 24–72 小时比赛扫描、Celery Beat 的每日扫描/生成/清理任务和可审计自动化流水线。
+- 新增 `automation_runs`、内容资产查询、仪表盘汇总和模型表现 API。
+- 新增生产 Docker Compose、Nginx、worker/beat、结构化日志、健康检查、备份脚本与部署文档。
+- 自动化不会执行第三方账号登录或小红书自动发布；报告和 PNG 仍以 API/静态地址交付。
+
 ## Phase 6 — 比赛海报生成系统
 
 - 新增五套赛事 HTML/CSS 模板、风格映射、固定水印与 Playwright PNG 渲染器。

@@ -70,6 +70,10 @@ curl -X POST http://localhost:8000/api/v1/posters/generate \
 
 Use the returned `poster_id` with `GET /api/v1/posters/{poster_id}`. The response includes a stable image URL under `/generated/posters/`.
 
+## Automation and dashboard
+
+Celery Beat scans saved fixtures 24–72 hours before kickoff and creates a tracked automation run. It does not log in to or publish on social platforms. Inspect totals with `GET /api/v1/dashboard/summary`, model performance with `GET /api/v1/dashboard/model-performance`, and filtered content status with `GET /api/v1/dashboard/content-assets`.
+
 The initial migration creates the foundation schema and inserts only five supported-competition
 metadata records: `CSL`, `MLS`, `LIGA_MX`, `UCL_QUALIFIER`, and `BRA_SERIE_A`.
 

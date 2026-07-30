@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None = None
     llm_model: str | None = None
     poster_output_dir: str = "generated/posters"
+    temporary_file_dir: str = "generated/tmp"
+    log_level: str = "INFO"
+    log_format: str = "json"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

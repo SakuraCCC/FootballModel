@@ -25,6 +25,10 @@
 
 海报只允许关联通过审校的 `report_outputs`，不会写回或改变预测、报告事实和模型输出。
 
+## Phase 7 自动化运行
+
+`automation_runs` 以 `match_id` 唯一，关联自动创建的 Analysis Job、预测、报告和海报，并保存 `status`、`current_step`、`error_message`、`retry_count` 与 Celery `task_id`。该表使自动链路的失败与重试可追踪，而 `content_publish_records` 继续用于人工发布状态及未来运营分析。
+
 ## 时间完整性
 
 `model_runs.input_snapshot_id` 指向预测输入快照。回测时该快照的 `retrieved_at` 必须不晚于比赛 `kickoff_at`；最终赛果仅用于赛后评价。

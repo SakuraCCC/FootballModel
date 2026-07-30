@@ -357,3 +357,28 @@ class ContentPublishRecord(TimestampedModel, Base):
     likes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     collects: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     comments: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class AutomationRun(TimestampedModel, Base):
+    __tablename__ = "automation_runs"
+    __table_args__ = (Index("ix_automation_runs_status_created", "status", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), unique=True, nullable=False)
+    analysis_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("analysis_jobs.id", ondelete="SET NULL"), nullable=True
+    )
+    prediction_id: Mapped[str | None] = mapped_column(
+        ForeignKey("prediction_results.id", ondelete="SET NULL"), nullable=True
+    )
+    report_id: Mapped[str | None] = mapped_column(
+        ForeignKey("report_outputs.id", ondelete="SET NULL"), nullable=True
+    )
+    poster_id: Mapped[str | None] = mapped_column(
+        ForeignKey("poster_outputs.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    current_step: Mapped[str] = mapped_column(String(64), nullable=False, default="discovered")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.analysis_jobs import router as analysis_jobs_router
 from app.api.v1.backtests import router as backtests_router
 from app.api.v1.competitions import router as competitions_router
+from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.evaluation import router as evaluation_router
 from app.api.v1.health import router as health_router
 from app.api.v1.ingestion import router as ingestion_router
@@ -23,3 +24,4 @@ api_router.include_router(evaluation_router, prefix=get_settings().api_v1_prefix
 api_router.include_router(backtests_router, prefix=get_settings().api_v1_prefix)
 api_router.include_router(reports_router, prefix=get_settings().api_v1_prefix)
 api_router.include_router(posters_router, prefix=get_settings().api_v1_prefix)
+api_router.include_router(dashboard_router, prefix=get_settings().api_v1_prefix)

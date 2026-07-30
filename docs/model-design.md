@@ -37,3 +37,9 @@ Prompt 以文件方式管理：`internal_report_v2.md`、`xiaohongshu_v2.md`、`
 ## Phase 6 海报渲染
 
 海报不是预测模型，也不使用 AI 图片生成。`PosterService` 只接受 `status=generated` 的报告，读取其预测的联赛、北京时间、球队、方向、总进球范围、BTTS、三组比分、风险等级和置信度。五个赛事代码映射到独立 HTML/CSS 模板，Playwright Chromium 在固定 1080×1350 画布截图为 PNG；水印固定为 `Sakura Football Model V2.0`。
+
+## Phase 7–8 自动化与交付
+
+Celery Beat 每日依次调度比赛扫描、自动分析生成与临时文件清理。自动链路创建审计用 Analysis Job，再执行既有预测、已审校报告和固定模板海报服务；模型、评分和事实审校逻辑不在自动化中改写。
+
+报告文字可通过报告 API 返回并复制，海报通过静态 PNG URL 返回。系统不代替用户登录、发布或操作小红书等外部平台。

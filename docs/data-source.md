@@ -26,3 +26,7 @@
 Phase 5 的 `ReportContext` 从与预测关联的 `model_runs.input_snapshot_id` 读取快照，输出快照 ID、供应商、端点和检索时间。比赛的 `certainty` 决定其进入 `confirmed_facts` 或 `reported_information`；报告生成与事实审校均不得提升可信等级。
 
 Phase 6 海报不再读取供应商 API，也不生成或修改事实。它只读取已审校报告对应的结构化预测字段，因此可通过 `report_id` 与 `prediction_id` 回溯其来源。
+
+## 自动化扫描
+
+Phase 7 仅扫描已由数据接入层保存、且开球时间在未来 24–72 小时内的比赛。扫描器不直接调用第三方 API；失败重试也只重用已入库数据和来源快照。已完成或正在执行的自动化记录不会重复入队。

@@ -13,8 +13,10 @@
 - Phase 4.5：真实赛果、赛后评估、模型表现聚合和无未来数据泄漏的历史回测。
 - Phase 5：来源保留的报告上下文、外置版本化 Prompt、OpenAI 兼容 LLM、事实审校、内容风控与报告持久化。
 - Phase 6：赛事风格化 HTML/CSS 海报、Playwright PNG 渲染、海报溯源与运营记录基础表。
+- Phase 7：未来比赛扫描、Celery Beat 调度、自动化运行审计、内容资产查询和运营仪表盘 API。
+- Phase 8：VPS 生产 Compose、Nginx、健康检查、结构化日志、数据库备份与部署文档。
 
-Phase 6 不使用图片模型生成海报或文字。Phase 2 的 mock 输出必须始终带有 `mock_for_pipeline_test=true`，不得表现为真实预测。
+Phase 7–8 不执行小红书自动发布，不接触任何第三方平台账号或登录。Phase 2 的 mock 输出必须始终带有 `mock_for_pipeline_test=true`，不得表现为真实预测。
 
 ## 分层
 
@@ -26,6 +28,7 @@ Phase 6 不使用图片模型生成海报或文字。Phase 2 的 mock 输出必�
 6. `services/backtest` 按开球时间回放已完赛比赛；每次运行只能读取 `retrieved_at <= kickoff_at` 的快照。
 7. `services/reporting` 只消费已保存的预测、模型运行、来源快照与评价结果；它将事实、报道和模型推断分开处理。
 8. `services/posters` 只消费已通过事实审校的报告和结构化预测，以固定 HTML/CSS 模板经 Playwright 生成 PNG。
+9. `services/scheduler` 在 24–72 小时窗口内发现已入库比赛，调用预测、报告和海报服务，并将每一步状态写入自动化运行记录。
 
 ## 数据与时间原则
 
@@ -38,6 +41,7 @@ Phase 6 不使用图片模型生成海报或文字。Phase 2 的 mock 输出必�
 - 报告必须保留来源快照引用和 certainty；`reported` 不得转写为 `confirmed` 或官方信息。
 - 未配置 LLM 时，报告 API 返回并持久化 `llm_unavailable`，不调用外部服务也不使请求失败。
 - 海报文字来自结构化数据库字段和固定模板，不由图片模型生成；文件关联报告、预测、赛事风格与模板版本。
+- 自动化任务失败时记录当前步骤、错误信息、任务 ID 和重试次数；不会绕过数据、预测、审校或海报服务。
 
 ## 开发流程
 
