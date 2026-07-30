@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "phase-1/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: football_model
+          POSTGRES_USER: football_model
+          POSTGRES_PASSWORD: test-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U football_model -d football_model"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://football_model:test-password@localhost:5432/football_model
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install .[dev]
+      - name: Lint
+        run: ruff check .
+      - name: Run database migrations
+        run: alembic upgrade head
+      - name: Test
+        run: pytest
