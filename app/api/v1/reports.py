@@ -21,7 +21,7 @@ def generate_report(
         result = ReportService(session).generate(payload.prediction_id, payload.report_type)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    return ReportGenerateResponse(report_id=result.report_id, status=result.status)
+    return ReportGenerateResponse(report_id=result.report_id, status=result.status, prompt_version=result.prompt_version, model_version=result.model_version)
 
 
 @router.get("/{report_id}", response_model=ReportRead)
@@ -43,6 +43,10 @@ def get_report(report_id: str, session: Session = Depends(get_db_session)) -> Re
         reviewed_at=report.reviewed_at,
         review_notes=report.review_notes,
         created_at=report.created_at,
+        model_version=report.model_version,
+        feature_version=report.feature_version,
+        data_version=report.data_version,
+        poster_version=report.poster_version,
     )
 
 
@@ -65,4 +69,4 @@ def reject_report(report_id: str, payload: ReportReviewRequest, session: Session
 
 
 def _read(report) -> ReportRead:
-    return ReportRead(id=report.report_id, prediction_id=report.prediction_id, report_type=report.report_type, content=report.content, prompt_version=report.prompt_version, llm_model=report.llm_model, status=report.status, warnings=report.warnings, review_status=report.review_status, reviewed_at=report.reviewed_at, review_notes=report.review_notes, created_at=report.created_at)
+    return ReportRead(id=report.report_id, prediction_id=report.prediction_id, report_type=report.report_type, content=report.content, prompt_version=report.prompt_version, llm_model=report.llm_model, status=report.status, warnings=report.warnings, review_status=report.review_status, reviewed_at=report.reviewed_at, review_notes=report.review_notes, created_at=report.created_at, model_version=report.model_version, feature_version=report.feature_version, data_version=report.data_version, poster_version=report.poster_version)

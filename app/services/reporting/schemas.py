@@ -63,3 +63,7 @@ class GeneratedReport(BaseModel):
     reviewed_at: datetime | None = None
     review_notes: str | None = None
     created_at: datetime
+    model_version: str | None = None
+    feature_version: str | None = None
+    data_version: str | None = None
+    poster_version: str | None = None

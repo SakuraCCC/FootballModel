@@ -7,12 +7,20 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
 from app.schemas.dashboard import (
     ContentAssetSummaryRead,
+    DailyOperationReportRead,
     DashboardSummaryRead,
     ModelPerformanceDashboardRead,
 )
 from app.services.dashboard import DashboardService
+from app.services.operations import DailyOperationReportService
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+@router.get("/daily-report", response_model=DailyOperationReportRead)
+def daily_operation_report(report_date: date | None = None, session: Session = Depends(get_db_session)) -> DailyOperationReportRead:
+    report = DailyOperationReportService(session).get_or_build(report_date)
+    return DailyOperationReportRead.model_validate(report, from_attributes=True)
 
 
 @router.get("/summary", response_model=DashboardSummaryRead)

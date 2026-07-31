@@ -3,6 +3,7 @@ from dataclasses import asdict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.version import DATA_VERSION, FEATURE_VERSION, MODEL_VERSION, POSTER_VERSION
 from app.models import ModelRun, ModelVersion, PredictionResult
 from app.services.prediction.calibration import assess_confidence
 from app.services.prediction.features import FeatureBuilder
@@ -56,8 +57,8 @@ class PredictionPipeline:
             input_snapshot_id=features.input_snapshot_id,
             output_json=self._model_output_json(output),
             confidence=confidence,
-            feature_version="feature_v2",
-            data_version=features.input_snapshot_id or "unavailable",
+            feature_version=FEATURE_VERSION,
+            data_version=DATA_VERSION,
             prompt_version="not_applicable",
             calibration_version="calibration_v1",
         )
@@ -75,8 +76,8 @@ class PredictionPipeline:
             input_snapshot_id=features.input_snapshot_id,
             output_json=asdict(output),
             confidence=confidence,
-            feature_version="feature_v2",
-            data_version=features.input_snapshot_id or "unavailable",
+            feature_version=FEATURE_VERSION,
+            data_version=DATA_VERSION,
             prompt_version="not_applicable",
             calibration_version="calibration_v1",
         )
@@ -111,8 +112,8 @@ class PredictionPipeline:
             input_snapshot_id=features.input_snapshot_id,
             output_json=payload,
             confidence=confidence,
-            feature_version="feature_v2",
-            data_version=features.input_snapshot_id or "unavailable",
+            feature_version=FEATURE_VERSION,
+            data_version=DATA_VERSION,
             prompt_version="not_applicable",
             calibration_version="calibration_v1",
         )
@@ -159,6 +160,11 @@ class PredictionPipeline:
                 },
             },
             confidence=confidence,
+            model_version=MODEL_VERSION,
+            feature_version=FEATURE_VERSION,
+            data_version=DATA_VERSION,
+            prompt_version="not_applicable",
+            poster_version=POSTER_VERSION,
         )
         self._session.add(result)
         self._session.flush()
@@ -173,8 +179,8 @@ class PredictionPipeline:
                 name=name,
                 version=version,
                 description=description,
-                feature_version="feature_v2",
-                data_version="snapshot_bound",
+                feature_version=FEATURE_VERSION,
+                data_version=DATA_VERSION,
                 prompt_version="not_applicable",
                 calibration_version="calibration_v1",
             )

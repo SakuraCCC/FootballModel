@@ -399,6 +399,11 @@ class PredictionResult(TimestampedModel, Base):
     alternative_score: Mapped[str | None] = mapped_column(String(16), nullable=True)
     review_summary: Mapped[dict] = mapped_column(JSON, nullable=False)
     confidence: Mapped[str] = mapped_column(String(24), nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    poster_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class Prediction(TimestampedModel, Base):
@@ -553,6 +558,10 @@ class ReportOutput(TimestampedModel, Base):
     review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft")
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    poster_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
 
 class PosterOutput(TimestampedModel, Base):
@@ -572,6 +581,37 @@ class PosterOutput(TimestampedModel, Base):
     review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft")
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    poster_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+
+class PromptExperiment(TimestampedModel, Base):
+    __tablename__ = "prompt_experiments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    prompt_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    change_description: Mapped[str] = mapped_column(Text, nullable=False)
+    related_reports: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    performance_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class DailyOperationReport(TimestampedModel, Base):
+    __tablename__ = "daily_operation_reports"
+    __table_args__ = (UniqueConstraint("report_date", name="uq_daily_operation_reports_date"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False)
+    analysis_match_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    successful_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed_tasks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    provider_request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quota_state: Mapped[str] = mapped_column(String(24), nullable=False, default="unknown")
+    report_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    poster_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class ContentPublishRecord(TimestampedModel, Base):
@@ -671,3 +711,8 @@ class PredictionArchive(TimestampedModel, Base):
     poster_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     actual_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    feature_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    data_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    poster_version: Mapped[str | None] = mapped_column(String(80), nullable=True)

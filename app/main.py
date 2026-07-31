@@ -8,6 +8,7 @@ from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import ProductionSecurityMiddleware
+from app.core.version import SYSTEM_VERSION
 
 
 def create_app() -> FastAPI:
@@ -15,8 +16,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
-        description="Phase 1 service foundation. No prediction models are implemented.",
+        version=SYSTEM_VERSION,
+        description="Sakura AI Football Model V3.2 production launch preparation.",
     )
     origins = [item.strip() for item in settings.cors_allowed_origins.split(",") if item.strip()]
     application.add_middleware(

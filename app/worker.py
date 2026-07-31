@@ -23,6 +23,7 @@ celery_app.conf.beat_schedule = {
     "daily-result-sync": {"task": "scheduler.daily_result_sync", "schedule": crontab(hour="*/2", minute=20)},
     "pre-match-refresh": {"task": "scheduler.pre_match_refresh", "schedule": crontab(minute="*/30")},
     "post-match-result-sync": {"task": "scheduler.post_match_result_sync", "schedule": crontab(hour="*/2")},
+    "daily-operation-report": {"task": "scheduler.daily_operation_report", "schedule": crontab(hour=23, minute=55)},
 }
 
 # Import task modules when the worker starts so task names are registered.

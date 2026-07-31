@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sakura-football-model"
-version = "0.1.0"
+version = "3.2.0"
 description = "Sakura AI 足球预测系统 V2.0 的服务基础设施"
 readme = "README.md"
 requires-python = ">=3.12"

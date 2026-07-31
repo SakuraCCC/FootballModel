@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.version import DATA_VERSION, FEATURE_VERSION, MODEL_VERSION, POSTER_VERSION
 from app.models import Competition, Match, PosterOutput, PredictionResult, ReportOutput, Team
 from app.services.posters.renderer import PosterRenderer
 from app.services.posters.schemas import PosterData, PosterStyle, RenderedPoster
@@ -47,6 +48,11 @@ class PosterService:
             file_path="",
             template_version=style.template_version,
             review_status="approved" if report.review_status == "approved" else "fact_checked",
+            model_version=report.model_version or MODEL_VERSION,
+            feature_version=report.feature_version or FEATURE_VERSION,
+            data_version=report.data_version or DATA_VERSION,
+            prompt_version=report.prompt_version,
+            poster_version=POSTER_VERSION,
         )
         self._session.add(poster)
         self._session.flush()
@@ -121,4 +127,9 @@ class PosterService:
         return RenderedPoster(
             file_path=poster.file_path,
             image_url=f"/generated/posters/{Path(poster.file_path).name}",
+            model_version=poster.model_version,
+            feature_version=poster.feature_version,
+            data_version=poster.data_version,
+            prompt_version=poster.prompt_version,
+            poster_version=poster.poster_version,
         )

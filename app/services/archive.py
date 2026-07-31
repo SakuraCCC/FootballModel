@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.version import DATA_VERSION, FEATURE_VERSION, MODEL_VERSION, POSTER_VERSION
 from app.models import (
     ActualResult,
     Match,
@@ -46,7 +47,7 @@ class PredictionArchiveService:
                 "competition_id": match.competition_id,
                 "kickoff_at": match.kickoff_at.isoformat() if match.kickoff_at else None,
                 "input_snapshot_id": model_run.input_snapshot_id,
-                "data_version": model_run.data_version,
+                "data_version": model_run.data_version or DATA_VERSION,
             },
             "model_output": model_run.output_json,
             "report_content": report.content if report else None,
@@ -60,6 +61,11 @@ class PredictionArchiveService:
             if actual
             else None,
             "archived_at": datetime.now(UTC),
+            "model_version": prediction.model_version or MODEL_VERSION,
+            "feature_version": prediction.feature_version or FEATURE_VERSION,
+            "data_version": prediction.data_version or DATA_VERSION,
+            "prompt_version": report.prompt_version if report else "not_applicable",
+            "poster_version": poster.poster_version if poster else POSTER_VERSION,
         }
         if archive is None:
             archive = PredictionArchive(prediction_id=prediction.id, **values)

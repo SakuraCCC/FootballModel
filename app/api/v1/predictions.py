@@ -18,7 +18,7 @@ def run_prediction(
         result = PredictionPipeline(session).run(payload.match_id)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
-    return PredictionRunResponse(prediction_id=result.id, status=result.status)
+    return PredictionRunResponse(prediction_id=result.id, status=result.status, model_version=result.model_version, feature_version=result.feature_version, data_version=result.data_version)
 
 
 @router.get("/{prediction_id}", response_model=PredictionRead)
@@ -50,6 +50,11 @@ def get_prediction(
         confidence=prediction.confidence,
         created_at=prediction.created_at,
         model_output=model_run.output_json,
+        model_version=prediction.model_version,
+        feature_version=prediction.feature_version,
+        data_version=prediction.data_version,
+        prompt_version=prediction.prompt_version,
+        poster_version=prediction.poster_version,
     )
 
 
@@ -88,4 +93,9 @@ def get_prediction_archive(prediction_id: str, session: Session = Depends(get_db
         "poster_path": archive.poster_path,
         "actual_result": archive.actual_result,
         "archived_at": archive.archived_at,
+        "model_version": archive.model_version,
+        "feature_version": archive.feature_version,
+        "data_version": archive.data_version,
+        "prompt_version": archive.prompt_version,
+        "poster_version": archive.poster_version,
     }

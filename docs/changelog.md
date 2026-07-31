@@ -1,5 +1,13 @@
 # Changelog
 
+## V3.2 - Production Launch Preparation
+
+- Added the non-blocking `production_check` CLI for environment, infrastructure, provider quota, storage, and five-competition readiness.
+- Added release metadata (`model_version`, `feature_version`, `data_version`, `prompt_version`, and `poster_version`) to prediction, report, poster, and archive outputs without changing prediction algorithms.
+- Added `prompt_experiments` and `daily_operation_reports` persistence, plus `/api/v1/dashboard/daily-report`.
+- Extended the controlled E2E output with release/version and provider-usage fields. Missing live credentials remain `not_executed`.
+- Updated the package and FastAPI release version to V3.2 and documented the first real production run in `docs/first-production-run.md`.
+
 ## Phase 11 - personal console, free-data modes, and production acceptance
 
 - Added the API-Football endpoint audit, runtime plan/limit detection, case-insensitive rate-limit parsing, finite retry budgeting, coverage gates, and request-hash snapshot caching.

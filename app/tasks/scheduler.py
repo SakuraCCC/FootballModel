@@ -2,6 +2,7 @@ import logging
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal
+from app.services.operations import DailyOperationReportService
 from app.services.scheduler import AutomationPipeline, MatchScanner, record_heartbeat
 from app.services.scheduler.cleanup import TemporaryFileCleaner
 from app.services.scheduler.ingestion_tasks import (
@@ -75,6 +76,18 @@ def daily_cleanup() -> int:
         removed = TemporaryFileCleaner(get_settings().temporary_file_dir).remove_expired()
         logger.info("daily_cleanup_completed removed=%s", removed)
         return removed
+    finally:
+        session.close()
+
+
+@celery_app.task(name="scheduler.daily_operation_report")
+def daily_operation_report() -> str:
+    session = SessionLocal()
+    try:
+        record_heartbeat(session, "daily_operation_report")
+        report = DailyOperationReportService(session).get_or_build()
+        logger.info("daily_operation_report_completed report_id=%s", report.id)
+        return report.id
     finally:
         session.close()
 

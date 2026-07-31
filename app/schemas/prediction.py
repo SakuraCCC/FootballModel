@@ -11,6 +11,9 @@ class PredictionRunRequest(BaseModel):
 class PredictionRunResponse(BaseModel):
     prediction_id: str
     status: str
+    model_version: str | None = None
+    feature_version: str | None = None
+    data_version: str | None = None
 
 
 class PredictionRead(BaseModel):
@@ -28,3 +31,8 @@ class PredictionRead(BaseModel):
     confidence: str
     created_at: datetime
     model_output: dict[str, Any]
+    model_version: str | None = None
+    feature_version: str | None = None
+    data_version: str | None = None
+    prompt_version: str | None = None
+    poster_version: str | None = None

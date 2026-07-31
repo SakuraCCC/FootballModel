@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel
@@ -34,3 +35,14 @@ class ModelPerformanceDashboardRead(BaseModel):
     log_loss: float | None
     brier_score: float | None
     models: list[dict[str, Any]]
+
+
+class DailyOperationReportRead(BaseModel):
+    report_date: date
+    analysis_match_count: int
+    successful_tasks: int
+    failed_tasks: int
+    provider_request_count: int
+    quota_state: str
+    report_count: int
+    poster_count: int

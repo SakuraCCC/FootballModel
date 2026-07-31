@@ -32,3 +32,8 @@ class PosterData:
 class RenderedPoster:
     file_path: str
     image_url: str
+    model_version: str | None = None
+    feature_version: str | None = None
+    data_version: str | None = None
+    prompt_version: str | None = None
+    poster_version: str | None = None

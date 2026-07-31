@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import PosterOutput, ReportOutput
+from app.core.version import DATA_VERSION, FEATURE_VERSION, MODEL_VERSION, POSTER_VERSION
+from app.models import PosterOutput, PredictionResult, ReportOutput
 from app.services.reporting.builder import ReportContextBuilder
 from app.services.reporting.content_guard import ContentGuard
 from app.services.reporting.fact_checker import FactChecker
@@ -30,6 +31,7 @@ class ReportService:
         prompt = self._prompt_loader.load(report_type)
         generation = self._llm_client.generate(prompt=prompt, context=context)
         prompt_version = self._prompt_loader.version(report_type)
+        prediction = self._session.get(PredictionResult, prediction_id)
         if generation.status == "llm_unavailable":
             output = ReportOutput(
                 prediction_id=prediction_id,
@@ -40,6 +42,10 @@ class ReportService:
                 status="llm_unavailable",
                 warnings=["llm_unavailable"],
                 review_status="draft",
+                model_version=prediction.model_version if prediction else MODEL_VERSION,
+                feature_version=prediction.feature_version if prediction else FEATURE_VERSION,
+                data_version=prediction.data_version if prediction else DATA_VERSION,
+                poster_version=POSTER_VERSION,
             )
             self._session.add(output)
             self._session.commit()
@@ -58,6 +64,10 @@ class ReportService:
             status="warning" if warnings else "generated",
             warnings=warnings,
             review_status="fact_checked" if not warnings else "draft",
+            model_version=prediction.model_version if prediction else MODEL_VERSION,
+            feature_version=prediction.feature_version if prediction else FEATURE_VERSION,
+            data_version=prediction.data_version if prediction else DATA_VERSION,
+            poster_version=POSTER_VERSION,
         )
         self._session.add(output)
         self._session.commit()
@@ -111,4 +121,8 @@ class ReportService:
             reviewed_at=output.reviewed_at,
             review_notes=output.review_notes,
             created_at=output.created_at,
+            model_version=output.model_version,
+            feature_version=output.feature_version,
+            data_version=output.data_version,
+            poster_version=output.poster_version,
         )

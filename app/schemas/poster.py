@@ -9,6 +9,7 @@ class PosterGenerateRequest(BaseModel):
 
 class PosterGenerateResponse(BaseModel):
     poster_id: str
+    poster_version: str | None = None
 
 
 class PosterRead(BaseModel):
@@ -22,3 +23,8 @@ class PosterRead(BaseModel):
     review_status: str = "draft"
     reviewed_at: datetime | None = None
     review_notes: str | None = None
+    model_version: str | None = None
+    feature_version: str | None = None
+    data_version: str | None = None
+    prompt_version: str | None = None
+    poster_version: str | None = None
