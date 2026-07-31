@@ -56,7 +56,7 @@ jobs:
       - name: Poster rendering smoke test
         run: pytest tests/test_poster_renderer.py tests/test_poster_templates.py
       - name: Production smoke script syntax
-        run: sh -n scripts/smoke_test.sh scripts/restore_postgres_test.sh
+        run: sh -n scripts/smoke_test.sh scripts/restore_postgres_test.sh scripts/first_run_check.sh scripts/production_acceptance.sh
       - name: Remove production env fixture
         if: always()
         run: rm -f .env.production
