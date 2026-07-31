@@ -23,4 +23,11 @@ class ReportRead(BaseModel):
     llm_model: str | None
     status: Literal["generated", "warning", "llm_unavailable"]
     warnings: list[str]
+    review_status: Literal["draft", "fact_checked", "approved", "rejected"]
+    reviewed_at: datetime | None
+    review_notes: str | None
     created_at: datetime
+
+
+class ReportReviewRequest(BaseModel):
+    notes: str | None = Field(default=None, max_length=2000)

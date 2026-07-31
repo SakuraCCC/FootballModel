@@ -109,6 +109,7 @@ class Match(TimestampedModel, Base):
     )
     kickoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(24), default="scheduled", nullable=False)
+    lineup_status: Mapped[str] = mapped_column(String(24), default="unavailable", nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     source_id: Mapped[str | None] = mapped_column(
         ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=True
@@ -208,6 +209,88 @@ class PlayerImportanceScore(TimestampedModel, Base):
     position_weight: Mapped[float | None] = mapped_column(nullable=True)
     score: Mapped[float | None] = mapped_column(nullable=True)
     certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="unavailable")
+
+
+class CompetitionStanding(TimestampedModel, Base):
+    __tablename__ = "competition_standings"
+    __table_args__ = (UniqueConstraint("competition_id", "season_id", "team_id", name="uq_competition_standings_team"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    competition_id: Mapped[str] = mapped_column(ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False)
+    season_id: Mapped[str] = mapped_column(ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=False)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False)
+    rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goals_for: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goals_against: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goal_difference: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    form: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+
+
+class PlayerSeasonStat(TimestampedModel, Base):
+    __tablename__ = "player_season_stats"
+    __table_args__ = (UniqueConstraint("player_id", "season_id", name="uq_player_season_stats_player"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    player_id: Mapped[str] = mapped_column(ForeignKey("players.id", ondelete="RESTRICT"), nullable=False)
+    season_id: Mapped[str] = mapped_column(ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=False)
+    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
+    position: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    minutes_played: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    appearances: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    goals: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assists: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+
+
+class Injury(TimestampedModel, Base):
+    __tablename__ = "injuries"
+    __table_args__ = (UniqueConstraint("external_id", "match_id", "player_id", name="uq_injuries_source_record"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    external_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    match_id: Mapped[str | None] = mapped_column(ForeignKey("matches.id", ondelete="SET NULL"), nullable=True)
+    player_id: Mapped[str | None] = mapped_column(ForeignKey("players.id", ondelete="SET NULL"), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    injury_type: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+
+
+class MatchLineup(TimestampedModel, Base):
+    __tablename__ = "match_lineups"
+    __table_args__ = (UniqueConstraint("match_id", "team_id", "external_player_id", name="uq_match_lineups_player"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    match_id: Mapped[str] = mapped_column(ForeignKey("matches.id", ondelete="RESTRICT"), nullable=False)
+    team_id: Mapped[str] = mapped_column(ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False)
+    player_id: Mapped[str | None] = mapped_column(ForeignKey("players.id", ondelete="SET NULL"), nullable=True)
+    external_player_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    player_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    starter: Mapped[bool | None] = mapped_column(nullable=True)
+    position: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    jersey: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+
+
+class ProviderQuotaUsage(TimestampedModel, Base):
+    __tablename__ = "provider_quota_usage"
+    __table_args__ = (UniqueConstraint("source_id", "usage_date", name="uq_provider_quota_usage_day"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    source_id: Mapped[str] = mapped_column(ForeignKey("data_sources.id", ondelete="RESTRICT"), nullable=False)
+    usage_date: Mapped[date] = mapped_column(Date, nullable=False)
+    request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quota_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    remaining: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ModelVersion(TimestampedModel, Base):
@@ -419,6 +502,9 @@ class ReportOutput(TimestampedModel, Base):
     llm_model: Mapped[str | None] = mapped_column(String(160), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     warnings: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class PosterOutput(TimestampedModel, Base):
@@ -435,6 +521,9 @@ class PosterOutput(TimestampedModel, Base):
     competition_style: Mapped[str] = mapped_column(String(32), nullable=False)
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     template_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ContentPublishRecord(TimestampedModel, Base):

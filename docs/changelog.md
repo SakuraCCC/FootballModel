@@ -10,6 +10,15 @@
 - Real production E2E is documented as pending because no local API-Football or LLM credential was configured; no mock was substituted.
 - Added filtered model-performance analysis by competition, model name, and kickoff-date range.
 
+## Phase 10 — Real ingestion, acceptance, and security hardening
+
+- Added persistent standings, player-season statistics, injuries, lineups, provider quota usage, and real match-statistics/result synchronization APIs.
+- Added API-Football timeout, finite 429/5xx retry with `Retry-After`, and raw snapshot/quota persistence.
+- Added daily fixture/context sync, pre-match refresh, post-match result sync, duplicate-safe evaluation scheduling, and Beat entries.
+- Added production admin-key authentication, CORS allowlist, rate limiting, secure response headers, and fail-closed production configuration.
+- Added report/poster manual review state and approve/reject APIs; no platform auto-publishing was added.
+- Added controlled E2E CLI, production smoke/restore scripts, CI Compose/build/Playwright checks, and documented the local no-credentials result.
+
 ## Phase 7 + Phase 8 MVP — 自动化运营与生产部署基础
 
 - 新增未来 24–72 小时比赛扫描、Celery Beat 的每日扫描/生成/清理任务和可审计自动化流水线。

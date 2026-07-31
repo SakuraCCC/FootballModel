@@ -12,6 +12,8 @@ class ProviderResponse:
     retrieved_at: datetime
     response_json: dict[str, Any]
     data: list[dict[str, Any]]
+    quota: dict[str, Any] | None = None
+    status_code: int | None = None
 
 
 class BaseProvider(ABC):
@@ -45,3 +47,6 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def get_statistics(self, *, fixture_id: int, team_id: int | None = None) -> ProviderResponse: ...
+
+    def get_standings(self, *, league_id: int, season: int) -> ProviderResponse:
+        raise NotImplementedError("This provider does not implement standings")

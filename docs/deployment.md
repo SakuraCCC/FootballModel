@@ -52,3 +52,12 @@ Celery Beat 每日扫描 24–72 小时内的已入库比赛，依次执行预�
 5. 在 `/api/v1/providers/status` 检查 API-Football；未配置 key 的 `unavailable` 是预期安全状态。配置真实 key 后再执行一次受控的比赛同步。
 6. 使用 `/api/v1/dashboard/admin` 查看只读运营概览；报告正文可从报告 API 复制，PNG 可从海报 API 的 `image_url` 下载。系统没有第三方平台自动发布功能。
 7. 使用 `scripts/backup_postgres.sh` 备份。恢复时先停写入服务，再用受保护的 `pg_restore` 恢复到目标数据库，运行 `alembic upgrade head`，最后重启 stack 并复查四个健康端点。
+
+## Phase 10 上线验收
+
+1. 复制 `.env.production.example` 为 `.env.production`，设置随机 `ADMIN_API_KEY`、真实 `API_FOOTBALL_KEY` 和（需要报告时）LLM 三项配置；生产没有管理员密钥时写入接口会返回 503。
+2. 用 `docker compose -f docker-compose.prod.yml --env-file .env.production config` 检查变量展开，再启动生产 stack。
+3. 设置 `X-Admin-API-Key` 请求头访问详细健康、供应商状态、运营统计、报告和海报接口；`/health` 可公开探活。
+4. 先运行受控真实验收：`python -m app.cli.e2e_verify --competition CSL --match-id <provider_match_id>`。缺少任一真实密钥时命令以 `not_executed` 和退出码 2 结束，不生成测试结果。
+5. 运行 `scripts/smoke_test.sh`；备份恢复用 `BACKUP_FILE=... scripts/restore_postgres_test.sh`，脚本会创建并清理临时数据库，验证 `alembic_version` 可读取。Nginx 将 `/generated/` 反向代理到 API，使海报资产也经过管理员认证，不再绕过安全中间件。
+6. 报告生成后由管理员调用 `/api/v1/reports/{report_id}/approve` 或 `/reject`；被拒绝或仅 draft 的报告不能生成最终海报资产。

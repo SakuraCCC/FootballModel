@@ -67,7 +67,6 @@ services:
     ports: ["${NGINX_PORT:-80}:80"]
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - poster_data:/srv/generated:ro
     depends_on: [api]
     restart: unless-stopped
 

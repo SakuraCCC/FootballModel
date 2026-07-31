@@ -47,3 +47,11 @@ jobs:
         run: alembic upgrade head
       - name: Test
         run: pytest
+      - name: Validate production compose
+        run: docker compose -f docker-compose.prod.yml --env-file .env.production.example config
+      - name: Build production images
+        run: docker compose -f docker-compose.prod.yml --env-file .env.production.example build api worker
+      - name: Poster rendering smoke test
+        run: pytest tests/test_poster_renderer.py tests/test_poster_templates.py
+      - name: Production smoke script syntax
+        run: sh -n scripts/smoke_test.sh scripts/restore_postgres_test.sh

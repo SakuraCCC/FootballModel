@@ -41,3 +41,10 @@
 - `confidence_calibration`：模型版本、赛事、概率桶、样本量、观测频率、校准误差、可靠性和计算时间。
 - `prediction_archive`：每个 prediction 唯一的输入摘要、模型输出、报告正文、海报路径、赛后结果及归档时间。
 - `automation_runs` 新增 `failure_reason`、`failed_step`、`last_retry_time`；`model_versions` 和 `model_runs` 新增 feature/data/prompt/calibration 版本维度。
+
+## Phase 10 表与审核
+
+- `competition_standings` 保存赛事、赛季、球队排名及积分等真实榜单字段。
+- `player_season_stats` 保存球员赛季分钟、出场、进球和助攻；`injuries` 保存来源伤停；`match_lineups` 保存首发/替补状态。
+- `provider_quota_usage` 按来源和日期聚合请求数、限额、剩余额度、最后 HTTP 状态和检索时间。
+- `report_outputs` 与 `poster_outputs` 增加 `review_status`、`reviewed_at`、`review_notes`。审核状态为 `draft`、`fact_checked`、`approved`、`rejected`；报告审核会同步关联海报资产状态。

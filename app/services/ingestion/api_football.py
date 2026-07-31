@@ -1,3 +1,4 @@
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,15 +31,40 @@ class ApiFootballProvider(BaseProvider):
             raise ProviderConfigurationError("API_FOOTBALL_KEY is not configured")
         self._base_url = resolved_settings.api_football_base_url.rstrip("/")
         self._api_key = resolved_settings.api_football_key.get_secret_value()
-        self._client = client or httpx.Client(timeout=20.0)
+        self._timeout = resolved_settings.provider_timeout_seconds
+        self._max_retries = resolved_settings.provider_max_retries
+        self._backoff = resolved_settings.provider_retry_backoff_seconds
+        self._client = client or httpx.Client(timeout=self._timeout)
 
     def _get(self, endpoint: str, params: dict[str, object]) -> ProviderResponse:
         request_time = datetime.now(UTC)
-        response = self._client.get(
-            f"{self._base_url}/{endpoint}",
-            params={key: value for key, value in params.items() if value is not None},
-            headers={"x-apisports-key": self._api_key},
-        )
+        request_params = {key: value for key, value in params.items() if value is not None}
+        response = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = self._client.get(
+                    f"{self._base_url}/{endpoint}",
+                    params=request_params,
+                    headers={"x-apisports-key": self._api_key},
+                )
+            except httpx.TransportError as error:
+                if attempt >= self._max_retries:
+                    raise ProviderResponseError(f"API-Football {endpoint} transport failed") from error
+                time.sleep(self._backoff * (2**attempt))
+                continue
+            if response.status_code == 429 or response.status_code >= 500:
+                if attempt >= self._max_retries:
+                    raise ProviderResponseError(f"API-Football {endpoint} unavailable after retries")
+                retry_after = response.headers.get("Retry-After")
+                try:
+                    delay = float(retry_after) if retry_after else self._backoff * (2**attempt)
+                except ValueError:
+                    delay = self._backoff * (2**attempt)
+                time.sleep(min(delay, 30.0))
+                continue
+            break
+        if response is None:
+            raise ProviderResponseError(f"API-Football {endpoint} returned no response")
         retrieved_at = datetime.now(UTC)
         try:
             response.raise_for_status()
@@ -57,6 +83,12 @@ class ApiFootballProvider(BaseProvider):
             retrieved_at=retrieved_at,
             response_json=payload,
             data=data,
+            quota={
+                key: response.headers.get(key)
+                for key in ("x-ratelimit-requests-limit", "x-ratelimit-requests-remaining")
+                if response.headers.get(key) is not None
+            },
+            status_code=response.status_code,
         )
 
     def get_competitions(self, *, season: int | None = None) -> ProviderResponse:
@@ -85,3 +117,6 @@ class ApiFootballProvider(BaseProvider):
 
     def get_statistics(self, *, fixture_id: int, team_id: int | None = None) -> ProviderResponse:
         return self._get("fixtures/statistics", {"fixture": fixture_id, "team": team_id})
+
+    def get_standings(self, *, league_id: int, season: int) -> ProviderResponse:
+        return self._get("standings", {"league": league_id, "season": season})

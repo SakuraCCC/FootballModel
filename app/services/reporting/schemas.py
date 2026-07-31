@@ -59,4 +59,7 @@ class GeneratedReport(BaseModel):
     llm_model: str | None
     status: Literal["generated", "warning", "llm_unavailable"]
     warnings: list[str]
+    review_status: Literal["draft", "fact_checked", "approved", "rejected"]
+    reviewed_at: datetime | None = None
+    review_notes: str | None = None
     created_at: datetime

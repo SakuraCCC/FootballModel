@@ -55,3 +55,12 @@ Phase 7–8 不执行小红书自动发布，不接触任何第三方平台账�
 - 历史统计只保存供应商真实返回的值；shots、shots_on_target、possession、corners、xG、xGA 不存在时保持 `null`，Feature Builder 也返回 `null` 并降低完整度。
 - 每个 model run 保存 feature/data/prompt/calibration 四个版本维度；校准、归档和赛后评价只读取既有持久化数据。
 - `/api/v1/dashboard/admin` 是只读的轻量运营页面；图片继续使用 poster API 返回的 PNG URL，文案使用 report API 返回的内容，不涉及第三方账号或自动发布。
+
+## Phase 10：真实接入、上线验收与安全
+
+- `ApiFootballProvider` 是唯一的外部 HTTP 入口，支持超时、有限指数退避、429/5xx 重试和配额快照；所有同步操作先保存 `raw_data_snapshots`，再写标准化实体。
+- 真实上下文同步覆盖积分榜、球员赛季统计、伤停、首发、比赛统计和赛后比分；不存在的字段保持 `null`，`reported` certainty 不会升级。
+- Celery Beat 增加赛程、上下文、临场刷新和赛后评价任务。赛后任务以 `prediction_evaluations` 唯一关系避免重复评价。
+- 生产环境通过 `ADMIN_API_KEY` 保护写接口、运营/资产/详细健康 API，并配置 CORS 白名单和基础速率限制；`/health` 保持公开。
+- 报告与海报资产有独立人工审核状态；只有 `approved` 才可视为最终发布资产，系统不执行第三方自动发布。
+- `python -m app.cli.e2e_verify` 只接受真实外部配置，缺少密钥时退出并报告原因，绝不回退到测试数据。

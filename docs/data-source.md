@@ -38,3 +38,11 @@ Phase 7 仅扫描已由数据接入层保存、且开球时间在未来 24–72 
 `GET /api/v1/providers/status` 返回供应商可访问性、响应时间、最近快照时间和最近比赛字段完整度。未设置 `API_FOOTBALL_KEY` 会返回 `unavailable`；该状态不是“健康”，也不会消耗 API 配额。
 
 球员影响评分只接受已获取的分钟、进球、助攻及位置。没有分钟数据时评分为 `null`，伤停影响在缺少可追溯球员数据时不会进入预测。
+
+## Phase 10 真实同步
+
+新增同步入口：`standings`、`players`、`injuries`、`lineups`、`statistics` 和 `results`。每次响应都会写入原始快照与 `provider_quota_usage`，并保存供应商 external ID、HTTP 状态、检索时间和 `reported` certainty。API-Football 的 xG、首发、伤停或球员统计缺失时只记录 `null`/`unavailable`。
+
+比赛的 `lineup_status=unavailable` 表示供应商尚未返回首发（对外显示“暂未公布”）；返回数据仅标记为 `reported`，不会被提升为官方首发。
+
+Provider 的重试仅针对传输失败、429 和 5xx，采用有限指数退避并尊重 `Retry-After`；4xx 业务错误不会无限重试。密钥只从环境变量读取，日志和快照不写请求头。

@@ -4,6 +4,12 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.services.scheduler import AutomationPipeline, MatchScanner, record_heartbeat
 from app.services.scheduler.cleanup import TemporaryFileCleaner
+from app.services.scheduler.ingestion_tasks import (
+    refresh_pre_match_context,
+    sync_context,
+    sync_future_fixtures,
+    sync_post_match_results,
+)
 from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
@@ -70,3 +76,23 @@ def daily_cleanup() -> int:
         return removed
     finally:
         session.close()
+
+
+@celery_app.task(name="scheduler.daily_fixture_sync")
+def daily_fixture_sync() -> dict[str, int]:
+    return sync_future_fixtures()
+
+
+@celery_app.task(name="scheduler.daily_context_sync")
+def daily_context_sync() -> dict[str, int]:
+    return sync_context()
+
+
+@celery_app.task(name="scheduler.pre_match_refresh")
+def pre_match_refresh() -> int:
+    return refresh_pre_match_context()
+
+
+@celery_app.task(name="scheduler.post_match_result_sync")
+def post_match_result_sync() -> int:
+    return sync_post_match_results()

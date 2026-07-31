@@ -1,6 +1,8 @@
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
 
-from app.models import ReportOutput
+from app.models import PosterOutput, ReportOutput
 from app.services.reporting.builder import ReportContextBuilder
 from app.services.reporting.content_guard import ContentGuard
 from app.services.reporting.fact_checker import FactChecker
@@ -37,6 +39,7 @@ class ReportService:
                 llm_model=None,
                 status="llm_unavailable",
                 warnings=["llm_unavailable"],
+                review_status="draft",
             )
             self._session.add(output)
             self._session.commit()
@@ -54,8 +57,29 @@ class ReportService:
             llm_model=generation.model,
             status="warning" if warnings else "generated",
             warnings=warnings,
+            review_status="fact_checked" if not warnings else "draft",
         )
         self._session.add(output)
+        self._session.commit()
+        self._session.refresh(output)
+        return self._to_generated(output)
+
+    def review(self, report_id: str, status: str, notes: str | None = None) -> GeneratedReport:
+        if status not in {"approved", "rejected"}:
+            raise ValueError("Invalid review status")
+        output = self._session.get(ReportOutput, report_id)
+        if output is None:
+            raise ValueError("Report was not found")
+        if status == "approved" and output.review_status not in {"fact_checked", "approved"}:
+            raise ValueError("Only fact-checked reports can be approved")
+        output.review_status = status
+        output.reviewed_at = datetime.now(UTC)
+        output.review_notes = notes
+        posters = self._session.query(PosterOutput).filter(PosterOutput.report_id == output.id).all()
+        for poster in posters:
+            poster.review_status = status
+            poster.reviewed_at = output.reviewed_at
+            poster.review_notes = notes
         self._session.commit()
         self._session.refresh(output)
         return self._to_generated(output)
@@ -83,5 +107,8 @@ class ReportService:
             llm_model=output.llm_model,
             status=output.status,
             warnings=output.warnings,
+            review_status=output.review_status,
+            reviewed_at=output.reviewed_at,
+            review_notes=output.review_notes,
             created_at=output.created_at,
         )

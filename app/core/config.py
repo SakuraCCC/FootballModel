@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     temporary_file_dir: str = "generated/tmp"
     log_level: str = "INFO"
     log_format: str = "json"
+    admin_api_key: SecretStr | None = None
+    cors_allowed_origins: str = ""
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
+    provider_timeout_seconds: float = 20.0
+    provider_max_retries: int = 3
+    provider_retry_backoff_seconds: float = 0.5
+    target_season: int = 2026
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

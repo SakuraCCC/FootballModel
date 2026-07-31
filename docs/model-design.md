@@ -55,3 +55,5 @@ Feature Builder 在已有最近五场赛果基础上增加进球、失球、射�
 `prediction_archive` 固化输入摘要、模型输出、可用报告、海报路径及赛后结果，是未来训练新版本前的审计素材，不反向污染历史模型输入。
 
 `GET /api/v1/evaluation/model-performance` 可按 `competition_code`、`model_name`、`start_date` 和 `end_date` 筛选已评估模型表现；时间筛选以比赛开球时间为准。
+
+Phase 10 不新增预测模型。赛后同步只把供应商最终比分写入 `actual_results`，随后复用已有 EvaluationService、model performance 和 calibration 流程。

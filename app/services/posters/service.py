@@ -28,7 +28,7 @@ class PosterService:
         report = self._session.get(ReportOutput, report_id)
         if report is None:
             raise ValueError("Report was not found")
-        if report.status != "generated":
+        if report.status != "generated" or report.review_status not in {"fact_checked", "approved"}:
             raise ValueError("Only fact-checked generated reports can produce posters")
         prediction = self._session.get(PredictionResult, report.prediction_id)
         if prediction is None:
@@ -46,6 +46,7 @@ class PosterService:
             competition_style=style.code,
             file_path="",
             template_version=style.template_version,
+            review_status="approved" if report.review_status == "approved" else "fact_checked",
         )
         self._session.add(poster)
         self._session.flush()

@@ -14,6 +14,8 @@ class NormalizedMatch:
     away_team: NormalizedTeam
     round_name: str | None
     certainty: str = "reported"
+    home_score: int | None = None
+    away_score: int | None = None
 
 
 def _parse_datetime(value: object) -> datetime | None:
@@ -32,6 +34,7 @@ def normalize_match(payload: dict[str, Any]) -> NormalizedMatch:
     home = teams.get("home") if isinstance(teams.get("home"), dict) else {}
     away = teams.get("away") if isinstance(teams.get("away"), dict) else {}
     status = fixture.get("status") if isinstance(fixture.get("status"), dict) else {}
+    goals = payload.get("goals") if isinstance(payload.get("goals"), dict) else {}
     return NormalizedMatch(
         external_id=str(fixture["id"]) if fixture.get("id") is not None else None,
         kickoff_at=_parse_datetime(fixture.get("date")),
@@ -39,4 +42,6 @@ def normalize_match(payload: dict[str, Any]) -> NormalizedMatch:
         home_team=normalize_team({"team": home}),
         away_team=normalize_team({"team": away}),
         round_name=league.get("round") if isinstance(league.get("round"), str) else None,
+        home_score=goals.get("home") if isinstance(goals.get("home"), int) else None,
+        away_score=goals.get("away") if isinstance(goals.get("away"), int) else None,
     )
