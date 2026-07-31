@@ -7,8 +7,9 @@ from app.services.scheduler.cleanup import TemporaryFileCleaner
 from app.services.scheduler.ingestion_tasks import (
     refresh_pre_match_context,
     sync_context,
+    sync_daily_results,
+    sync_daily_standings,
     sync_future_fixtures,
-    sync_post_match_results,
 )
 from app.worker import celery_app
 
@@ -88,6 +89,16 @@ def daily_context_sync() -> dict[str, int]:
     return sync_context()
 
 
+@celery_app.task(name="scheduler.daily_standings_sync")
+def daily_standings_sync() -> dict[str, int]:
+    return sync_daily_standings()
+
+
+@celery_app.task(name="scheduler.daily_result_sync")
+def daily_result_sync() -> int:
+    return sync_daily_results()
+
+
 @celery_app.task(name="scheduler.pre_match_refresh")
 def pre_match_refresh() -> int:
     return refresh_pre_match_context()
@@ -95,4 +106,4 @@ def pre_match_refresh() -> int:
 
 @celery_app.task(name="scheduler.post_match_result_sync")
 def post_match_result_sync() -> int:
-    return sync_post_match_results()
+    return sync_daily_results()

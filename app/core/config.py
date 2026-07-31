@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     provider_max_retries: int = 3
     provider_retry_backoff_seconds: float = 0.5
     target_season: int = 2026
+    api_football_plan_mode: str = "auto"
+    api_football_daily_soft_limit: int = 80
+    api_football_daily_reserve: int = 20
+    api_football_min_remaining_for_optional: int = 30
+    api_football_min_remaining_for_lineup: int = 10
+    football_data_mode: str = "hybrid"
+    provider_status_cache_hours: int = 24
+    provider_coverage_cache_days: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

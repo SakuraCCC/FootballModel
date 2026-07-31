@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, time
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models import (
     AutomationRun,
     Competition,
@@ -10,6 +11,7 @@ from app.models import (
     Match,
     PosterOutput,
     PredictionResult,
+    ProviderQuotaUsage,
     ReportOutput,
 )
 from app.services.evaluation import EvaluationService
@@ -107,6 +109,29 @@ class DashboardService:
 
     def model_performance(self, competition_code: str | None = None) -> dict:
         return EvaluationService(self._session).summary(competition_code=competition_code)
+
+    def admin_context(self) -> dict:
+        settings = get_settings()
+        quota = self._session.scalar(
+            select(ProviderQuotaUsage).order_by(
+                ProviderQuotaUsage.last_checked_at.desc(), ProviderQuotaUsage.updated_at.desc()
+            )
+        )
+        return {
+            "summary": self.summary(),
+            "database_status": "connected",
+            "redis_status": "configured" if settings.redis_url else "missing",
+            "worker_status": "inspect_required",
+            "scheduler_status": "heartbeat_required",
+            "provider_status": "configured" if settings.api_football_key else "unavailable",
+            "api_football_configured": settings.api_football_key is not None,
+            "llm_configured": bool(settings.llm_base_url and settings.llm_api_key and settings.llm_model),
+            "data_mode": settings.football_data_mode,
+            "plan_name": quota.plan_name if quota else None,
+            "daily_limit": quota.daily_limit if quota else None,
+            "daily_remaining": quota.daily_remaining if quota else None,
+            "quota_state": quota.quota_state if quota else "unknown",
+        }
 
     def _count(self, model) -> int:
         return self._session.scalar(select(func.count()).select_from(model)) or 0

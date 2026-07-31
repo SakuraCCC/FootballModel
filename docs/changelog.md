@@ -1,5 +1,14 @@
 # Changelog
 
+## Phase 11 - personal console, free-data modes, and production acceptance
+
+- Added the API-Football endpoint audit, runtime plan/limit detection, case-insensitive rate-limit parsing, finite retry budgeting, coverage gates, and request-hash snapshot caching.
+- Added `api_football`, `hybrid`, `manual`, and `offline` data modes with provenance-preserving CSV/JSON import APIs.
+- Added quota/coverage/import/batch-export persistence, setup status, audit and first-run CLIs, and a protected personal dashboard.
+- Added protected batch ZIP export with source manifests that exclude keys, environment files, and unnecessary raw responses.
+- Fixed CI production Compose validation by creating a temporary `.env.production` fixture from the committed example and removing it after validation.
+- Real provider and LLM E2E remains `not_executed` until the user supplies live credentials; no mock data was used.
+
 ## Phase 9 — Production Hardening & Model Optimization
 
 - Added scheduler health with PostgreSQL, Redis, and Beat-heartbeat status; added explicit provider health and recent automation failure APIs.

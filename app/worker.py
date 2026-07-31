@@ -19,6 +19,8 @@ celery_app.conf.beat_schedule = {
     "daily-cleanup": {"task": "scheduler.daily_cleanup", "schedule": crontab(hour=3, minute=30)},
     "daily-fixture-sync": {"task": "scheduler.daily_fixture_sync", "schedule": crontab(hour=6, minute=0)},
     "daily-context-sync": {"task": "scheduler.daily_context_sync", "schedule": crontab(hour=6, minute=30)},
+    "daily-standings-sync": {"task": "scheduler.daily_standings_sync", "schedule": crontab(hour=6, minute=20)},
+    "daily-result-sync": {"task": "scheduler.daily_result_sync", "schedule": crontab(hour="*/2", minute=20)},
     "pre-match-refresh": {"task": "scheduler.pre_match_refresh", "schedule": crontab(minute="*/30")},
     "post-match-result-sync": {"task": "scheduler.post_match_result_sync", "schedule": crontab(hour="*/2")},
 }

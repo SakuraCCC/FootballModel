@@ -1,4 +1,4 @@
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -67,6 +67,19 @@ class PosterService:
         if poster is None:
             raise ValueError("Poster was not found")
         return self._to_rendered(poster)
+
+    def review(self, poster_id: str, status: str, notes: str | None = None) -> PosterOutput:
+        if status not in {"approved", "rejected"}:
+            raise ValueError("invalid poster review status")
+        poster = self._session.get(PosterOutput, poster_id)
+        if poster is None:
+            raise ValueError("Poster was not found")
+        poster.review_status = status
+        poster.reviewed_at = datetime.now(UTC)
+        poster.review_notes = notes
+        self._session.commit()
+        self._session.refresh(poster)
+        return poster
 
     def _poster_data(
         self,

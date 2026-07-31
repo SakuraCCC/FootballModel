@@ -149,6 +149,9 @@ class RawDataSnapshot(TimestampedModel, Base):
     request_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     response_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    request_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    cached: Mapped[bool] = mapped_column(default=False, nullable=False)
+    cache_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Player(TimestampedModel, Base):
@@ -291,6 +294,51 @@ class ProviderQuotaUsage(TimestampedModel, Base):
     remaining: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_retrieved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    plan_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    daily_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    daily_remaining: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    minute_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    minute_remaining: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    quota_state: Mapped[str] = mapped_column(String(24), nullable=False, default="unknown")
+
+
+class CompetitionCoverage(TimestampedModel, Base):
+    __tablename__ = "competition_coverages"
+    __table_args__ = (UniqueConstraint("competition_id", "season_id", name="uq_competition_coverage_season"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    competition_id: Mapped[str] = mapped_column(ForeignKey("competitions.id", ondelete="RESTRICT"), nullable=False)
+    season_id: Mapped[str] = mapped_column(ForeignKey("seasons.id", ondelete="RESTRICT"), nullable=False)
+    coverage: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    source_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("raw_data_snapshots.id", ondelete="SET NULL"), nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+
+
+class ImportBatch(TimestampedModel, Base):
+    __tablename__ = "import_batches"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    import_batch_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, default=uuid_string)
+    source_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    certainty: Mapped[str] = mapped_column(String(24), nullable=False, default="reported")
+    imported_by: Mapped[str] = mapped_column(String(80), nullable=False, default="admin")
+    raw_payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class BatchExport(TimestampedModel, Base):
+    __tablename__ = "batch_exports"
+    __table_args__ = (UniqueConstraint("batch_id", name="uq_batch_exports_batch"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_string)
+    batch_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="completed")
 
 
 class ModelVersion(TimestampedModel, Base):

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db_session
 from app.models import PosterOutput
 from app.schemas.poster import PosterGenerateRequest, PosterGenerateResponse, PosterRead
+from app.schemas.report import ReportReviewRequest
 from app.services.posters import PosterService
 
 router = APIRouter(prefix="/posters", tags=["posters"])
@@ -36,4 +37,27 @@ def get_poster(poster_id: str, session: Session = Depends(get_db_session)) -> Po
         image_url=rendered.image_url,
         template_version=poster.template_version,
         created_at=poster.created_at,
+        review_status=poster.review_status,
+        reviewed_at=poster.reviewed_at,
+        review_notes=poster.review_notes,
     )
+
+
+@router.post("/{poster_id}/approve", response_model=PosterRead)
+def approve_poster(poster_id: str, payload: ReportReviewRequest, session: Session = Depends(get_db_session)) -> PosterRead:
+    try:
+        poster = PosterService(session).review(poster_id, "approved", payload.notes)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    rendered = PosterService(session).get(poster.id)
+    return PosterRead(id=poster.id, report_id=poster.report_id, prediction_id=poster.prediction_id, competition_style=poster.competition_style, image_url=rendered.image_url, template_version=poster.template_version, created_at=poster.created_at, review_status=poster.review_status, reviewed_at=poster.reviewed_at, review_notes=poster.review_notes)
+
+
+@router.post("/{poster_id}/reject", response_model=PosterRead)
+def reject_poster(poster_id: str, payload: ReportReviewRequest, session: Session = Depends(get_db_session)) -> PosterRead:
+    try:
+        poster = PosterService(session).review(poster_id, "rejected", payload.notes)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    rendered = PosterService(session).get(poster.id)
+    return PosterRead(id=poster.id, report_id=poster.report_id, prediction_id=poster.prediction_id, competition_style=poster.competition_style, image_url=rendered.image_url, template_version=poster.template_version, created_at=poster.created_at, review_status=poster.review_status, reviewed_at=poster.reviewed_at, review_notes=poster.review_notes)

@@ -16,4 +16,7 @@ case "$BACKUP_FILE" in
   *) docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$restore_db" < "$BACKUP_FILE" >/dev/null ;;
 esac
 docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$restore_db" -tAc "SELECT count(*) FROM alembic_version" | grep -Eq '^[[:space:]]*[1-9]'
+for table in matches raw_data_snapshots prediction_results report_outputs poster_outputs prediction_archive; do
+  docker compose -f docker-compose.prod.yml exec -T db psql -U "$POSTGRES_USER" -d "$restore_db" -tAc "SELECT to_regclass('$table')" | grep -q "$table"
+done
 printf 'backup restore smoke passed for %s\n' "$restore_db"

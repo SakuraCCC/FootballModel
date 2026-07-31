@@ -14,6 +14,9 @@ class ProviderResponse:
     data: list[dict[str, Any]]
     quota: dict[str, Any] | None = None
     status_code: int | None = None
+    snapshot_id: str | None = None
+    cached: bool = False
+    request_attempts: int = 1
 
 
 class BaseProvider(ABC):
@@ -50,3 +53,6 @@ class BaseProvider(ABC):
 
     def get_standings(self, *, league_id: int, season: int) -> ProviderResponse:
         raise NotImplementedError("This provider does not implement standings")
+
+    def get_status(self) -> ProviderResponse:
+        raise NotImplementedError("This provider does not implement status")

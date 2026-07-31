@@ -15,6 +15,7 @@ SENSITIVE_PREFIXES = (
     "/database-health", "/worker-health", "/scheduler-health", "/generated",
     "/api/v1/dashboard", "/api/v1/automation", "/api/v1/providers", "/api/v1/reports",
     "/api/v1/posters", "/api/v1/predictions", "/api/v1/evaluation", "/api/v1/calibration",
+    "/api/v1/setup", "/api/v1/import", "/api/v1/batches",
 )
 
 

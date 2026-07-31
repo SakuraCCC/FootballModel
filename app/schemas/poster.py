@@ -19,3 +19,6 @@ class PosterRead(BaseModel):
     image_url: str
     template_version: str
     created_at: datetime
+    review_status: str = "draft"
+    reviewed_at: datetime | None = None
+    review_notes: str | None = None

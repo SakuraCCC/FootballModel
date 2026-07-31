@@ -20,3 +20,6 @@ class ProviderStatusRead(BaseModel):
     response_time_ms: float | None
     last_sync: datetime | None
     data_quality: str
+    plan_name: str | None = None
+    daily_remaining: int | None = None
+    quota_state: str | None = None

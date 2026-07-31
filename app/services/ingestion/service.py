@@ -2,15 +2,20 @@
 # The ingestion mappings intentionally keep provider fields adjacent to their persistence updates.
 # ruff: noqa: E702
 
+import hashlib
+import json
+import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.models import (
     ActualResult,
     Competition,
+    CompetitionCoverage,
     CompetitionStanding,
     DataSource,
     Injury,
@@ -36,6 +41,9 @@ class IngestionError(RuntimeError):
     pass
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class IngestionSummary:
     source_name: str
@@ -47,9 +55,98 @@ class IngestionSummary:
 
 
 class IngestionService:
-    def __init__(self, session: Session, provider: BaseProvider) -> None:
+    def __init__(self, session: Session, provider: BaseProvider, settings: Settings | None = None) -> None:
         self._session = session
         self._provider = provider
+        self._settings = settings or get_settings()
+
+    @property
+    def data_mode(self) -> str:
+        return self._settings.football_data_mode.lower()
+
+    def _ensure_external_allowed(self) -> None:
+        if self.data_mode in {"offline", "manual"}:
+            raise IngestionError(f"external_provider_disabled:data_mode={self.data_mode}")
+
+    @staticmethod
+    def _request_hash(endpoint: str, params: dict[str, object]) -> str:
+        normalized = {key: params[key] for key in sorted(params) if params[key] is not None}
+        return hashlib.sha256(f"{endpoint}:{json.dumps(normalized, sort_keys=True, default=str)}".encode()).hexdigest()
+
+    def _quota_remaining(self) -> int | None:
+        usage = self._session.scalar(
+            select(ProviderQuotaUsage).order_by(ProviderQuotaUsage.last_retrieved_at.desc())
+        )
+        if usage is None:
+            return None
+        if self._settings.api_football_plan_mode in {"auto", "free"} and usage.request_count >= self._settings.api_football_daily_soft_limit:
+            return 0
+        return usage.daily_remaining
+
+    def _assert_budget(self, kind: str) -> None:
+        usage = self._session.scalar(
+            select(ProviderQuotaUsage).order_by(ProviderQuotaUsage.last_retrieved_at.desc())
+        )
+        remaining = usage.daily_remaining if usage else None
+        if usage and kind != "status" and self._settings.api_football_plan_mode in {"auto", "free"} and usage.request_count >= self._settings.api_football_daily_soft_limit:
+            remaining = 0
+        if remaining is None:
+            return
+        if remaining <= 0:
+            raise IngestionError("quota_exhausted")
+        optional = kind in {"players", "injuries", "statistics", "standings", "coverage"}
+        if optional and remaining <= self._settings.api_football_daily_reserve:
+            raise IngestionError(f"quota_critical:reserved:{kind}:remaining={remaining}")
+        if optional and remaining < self._settings.api_football_min_remaining_for_optional:
+            if kind == "lineups" and remaining >= self._settings.api_football_min_remaining_for_lineup:
+                return
+            raise IngestionError(f"quota_low:deferred_{kind}:remaining={remaining}")
+        if kind == "lineups" and remaining < self._settings.api_football_min_remaining_for_lineup:
+            raise IngestionError(f"quota_critical:deferred_lineups:remaining={remaining}")
+
+    def _provider_call(
+        self,
+        endpoint: str,
+        params: dict[str, object],
+        callback,
+        *,
+        cache_window: timedelta,
+        kind: str = "core",
+    ) -> ProviderResponse:
+        request_hash = self._request_hash(endpoint, params)
+        now = datetime.now(UTC)
+        cached = self._session.scalar(
+            select(RawDataSnapshot).where(
+                RawDataSnapshot.provider == self._provider.provider_name,
+                RawDataSnapshot.endpoint == endpoint,
+                RawDataSnapshot.request_hash == request_hash,
+                RawDataSnapshot.cache_expires_at > now,
+            ).order_by(RawDataSnapshot.retrieved_at.desc())
+        )
+        if cached is not None:
+            logger.info("provider_cache_hit provider=%s endpoint=%s", self._provider.provider_name, endpoint)
+            payload = cached.response_json
+            data = payload.get("response") if isinstance(payload, dict) else []
+            if isinstance(data, dict):
+                data = [data]
+            if not isinstance(data, list):
+                data = []
+            return ProviderResponse(
+                provider=cached.provider,
+                endpoint=cached.endpoint,
+                request_time=cached.request_time,
+                retrieved_at=cached.retrieved_at,
+                response_json=payload,
+                data=data,
+                snapshot_id=cached.id,
+                cached=True,
+            )
+        self._ensure_external_allowed()
+        self._assert_budget(kind)
+        response = callback()
+        object.__setattr__(response, "snapshot_id", request_hash)
+        logger.info("provider_request provider=%s endpoint=%s", self._provider.provider_name, endpoint)
+        return response
 
     def _source(self) -> DataSource:
         source = self._session.scalar(
@@ -73,6 +170,11 @@ class IngestionService:
         return source
 
     def _snapshot(self, source: DataSource, response: ProviderResponse) -> RawDataSnapshot:
+        if response.cached and response.snapshot_id:
+            snapshot = self._session.get(RawDataSnapshot, response.snapshot_id)
+            if snapshot is not None:
+                return snapshot
+        request_hash = response.snapshot_id if response.snapshot_id and len(response.snapshot_id) == 64 else None
         snapshot = RawDataSnapshot(
             data_source_id=source.id,
             provider=response.provider,
@@ -80,6 +182,9 @@ class IngestionService:
             request_time=response.request_time,
             response_json=response.response_json,
             retrieved_at=response.retrieved_at,
+            request_hash=request_hash,
+            cached=False,
+            cache_expires_at=response.retrieved_at + self._cache_window(response.endpoint),
         )
         self._session.add(snapshot)
         self._session.flush()
@@ -93,12 +198,48 @@ class IngestionService:
         if usage is None:
             usage = ProviderQuotaUsage(source_id=source.id, usage_date=response.retrieved_at.date())
             self._session.add(usage)
-        usage.request_count = (usage.request_count or 0) + 1
-        usage.quota_limit = self._to_int(quota.get("x-ratelimit-requests-limit"))
-        usage.remaining = self._to_int(quota.get("x-ratelimit-requests-remaining"))
+        usage.request_count = (usage.request_count or 0) + max(response.request_attempts, 1)
+        usage.quota_limit = self._to_int(quota.get("daily_limit") or quota.get("x-ratelimit-requests-limit"))
+        usage.remaining = self._to_int(quota.get("daily_remaining") or quota.get("x-ratelimit-requests-remaining"))
+        parsed_daily_limit = self._to_int(quota.get("daily_limit"))
+        parsed_daily_remaining = self._to_int(quota.get("daily_remaining"))
+        usage.daily_limit = parsed_daily_limit if parsed_daily_limit is not None else usage.quota_limit
+        usage.daily_remaining = parsed_daily_remaining if parsed_daily_remaining is not None else usage.remaining
+        usage.minute_limit = self._to_int(quota.get("minute_limit") or quota.get("x-ratelimit-requests-limit-minute"))
+        usage.minute_remaining = self._to_int(quota.get("minute_remaining") or quota.get("x-ratelimit-requests-remaining-minute"))
+        usage.last_checked_at = response.retrieved_at
+        usage.quota_state = self._quota_state(usage.daily_remaining)
         usage.last_status = response.status_code
         usage.last_retrieved_at = response.retrieved_at
         return snapshot
+
+    def _cache_window(self, endpoint: str) -> timedelta:
+        days = self._settings.provider_coverage_cache_days if endpoint == "leagues" else 1
+        if endpoint == "status":
+            return timedelta(hours=self._settings.provider_status_cache_hours)
+        if endpoint in {"teams"}:
+            return timedelta(days=30)
+        if endpoint in {"players", "standings"}:
+            return timedelta(days=7 if endpoint == "players" else 1)
+        if endpoint in {"fixtures"}:
+            return timedelta(hours=12)
+        if endpoint in {"fixtures/lineups", "injuries"}:
+            return timedelta(hours=3)
+        if endpoint in {"fixtures/statistics"}:
+            return timedelta(days=3650)
+        return timedelta(days=days)
+
+    @staticmethod
+    def _quota_state(remaining: int | None) -> str:
+        if remaining is None:
+            return "unknown"
+        if remaining <= 0:
+            return "quota_exhausted"
+        if remaining <= 20:
+            return "quota_critical"
+        if remaining <= 40:
+            return "quota_low"
+        return "normal"
 
     @staticmethod
     def _to_int(value: object) -> int | None:
@@ -108,7 +249,10 @@ class IngestionService:
             return None
 
     def sync_competitions(self, *, season: int | None = None) -> IngestionSummary:
-        response = self._provider.get_competitions(season=season)
+        response = self._provider_call(
+            "leagues", {"season": season}, lambda: self._provider.get_competitions(season=season),
+            cache_window=timedelta(days=self._settings.provider_coverage_cache_days), kind="coverage",
+        )
         source = self._source()
         snapshot = self._snapshot(source, response)
         saved = 0
@@ -156,10 +300,11 @@ class IngestionService:
                 f"API-Football league mapping is unavailable for {competition_code}; "
                 "synchronize competitions first."
             )
-        response = self._provider.get_matches(
-            league_id=competition.api_football_league_id,
-            season=season,
-            match_date=match_date.isoformat() if match_date else None,
+        match_date_value = match_date.isoformat() if match_date else None
+        response = self._provider_call(
+            "fixtures", {"league": competition.api_football_league_id, "season": season, "date": match_date_value},
+            lambda: self._provider.get_matches(league_id=competition.api_football_league_id, season=season, match_date=match_date_value),
+            cache_window=timedelta(hours=12), kind="core",
         )
         source = self._source()
         snapshot = self._snapshot(source, response)
@@ -188,9 +333,14 @@ class IngestionService:
 
     def sync_standings(self, *, competition_code: str, season: int) -> IngestionSummary:
         competition = self._competition(competition_code)
+        self._ensure_coverage(competition, season, "standings")
         if competition.api_football_league_id is None:
             raise IngestionError(f"API-Football league mapping is unavailable for {competition_code}")
-        response = self._provider.get_standings(league_id=competition.api_football_league_id, season=season)
+        response = self._provider_call(
+            "standings", {"league": competition.api_football_league_id, "season": season},
+            lambda: self._provider.get_standings(league_id=competition.api_football_league_id, season=season),
+            cache_window=timedelta(hours=12), kind="standings",
+        )
         source = self._source()
         snapshot = self._snapshot(source, response)
         season_record = self._get_or_create_season(competition, season, source)
@@ -220,10 +370,15 @@ class IngestionService:
         return self._summary(source, snapshot, len(response.data), saved)
 
     def sync_players(self, *, team_id: int, season: int | None = None, competition_code: str = "CSL") -> IngestionSummary:
-        response = self._provider.get_players(team_id=team_id, season=season)
+        self._ensure_coverage(self._competition(competition_code), season or self._settings.target_season, "players")
+        response = self._provider_call(
+            "players", {"team": team_id, "season": season},
+            lambda: self._provider.get_players(team_id=team_id, season=season),
+            cache_window=timedelta(days=7), kind="players",
+        )
         source = self._source(); snapshot = self._snapshot(source, response)
         competition = self._competition(competition_code)
-        season_record = self._get_or_create_season(competition, season or 0, source)
+        season_record = self._get_or_create_season(competition, season or self._settings.target_season, source)
         saved = 0
         for payload in response.data:
             normalized = normalize_player(payload)
@@ -249,9 +404,14 @@ class IngestionService:
 
     def sync_injuries(self, *, competition_code: str, season: int, fixture_id: int | None = None) -> IngestionSummary:
         competition = self._competition(competition_code)
+        self._ensure_coverage(competition, season, "injuries")
         if competition.api_football_league_id is None:
             raise IngestionError(f"API-Football league mapping is unavailable for {competition_code}")
-        response = self._provider.get_injuries(league_id=competition.api_football_league_id, season=season, fixture_id=fixture_id)
+        response = self._provider_call(
+            "injuries", {"league": competition.api_football_league_id, "season": season, "fixture": fixture_id},
+            lambda: self._provider.get_injuries(league_id=competition.api_football_league_id, season=season, fixture_id=fixture_id),
+            cache_window=timedelta(hours=3), kind="injuries",
+        )
         source = self._source(); snapshot = self._snapshot(source, response); saved = 0
         match = self._session.scalar(select(Match).where(Match.source_id == source.id, Match.external_id == str(fixture_id))) if fixture_id else None
         for payload in response.data:
@@ -275,7 +435,14 @@ class IngestionService:
         match = self._session.get(Match, match_id)
         if match is None:
             raise IngestionError("Match was not found")
-        response = self._provider.get_lineups(fixture_id=fixture_id); source = self._source(); snapshot = self._snapshot(source, response); saved = 0
+        competition = self._session.get(Competition, match.competition_id)
+        season = self._session.get(Season, match.season_id) if match.season_id else None
+        if competition is not None and season is not None:
+            self._ensure_coverage(competition, int(season.code), "lineups")
+        response = self._provider_call(
+            "fixtures/lineups", {"fixture": fixture_id}, lambda: self._provider.get_lineups(fixture_id=fixture_id),
+            cache_window=timedelta(hours=3), kind="lineups",
+        ); source = self._source(); snapshot = self._snapshot(source, response); saved = 0
         match.lineup_status = "reported" if response.data else "unavailable"
         for team_payload in response.data:
             team_info = team_payload.get("team") if isinstance(team_payload.get("team"), dict) else {}
@@ -297,7 +464,16 @@ class IngestionService:
         match = self._session.get(Match, match_id)
         if match is None:
             raise IngestionError("Match was not found")
-        response = self._provider.get_statistics(fixture_id=fixture_id); source = self._source(); snapshot = self._snapshot(source, response); saved = 0
+        competition = self._session.get(Competition, match.competition_id)
+        season = self._session.get(Season, match.season_id) if match.season_id else None
+        if competition is not None and season is not None:
+            self._ensure_coverage(competition, int(season.code), "statistics")
+        if (match.status or "").casefold() not in {"finished", "completed", "ft", "aet", "pen"}:
+            raise IngestionError("statistics_only_allowed_for_completed_match")
+        response = self._provider_call(
+            "fixtures/statistics", {"fixture": fixture_id}, lambda: self._provider.get_statistics(fixture_id=fixture_id),
+            cache_window=timedelta(days=3650), kind="statistics",
+        ); source = self._source(); snapshot = self._snapshot(source, response); saved = 0
         for payload in response.data:
             team_payload = payload.get("team") if isinstance(payload.get("team"), dict) else {}
             team = self._upsert_team_from_payload(team_payload, source)
@@ -314,7 +490,12 @@ class IngestionService:
         competition = self._competition(competition_code)
         if competition.api_football_league_id is None:
             raise IngestionError(f"API-Football league mapping is unavailable for {competition_code}")
-        response = self._provider.get_matches(league_id=competition.api_football_league_id, season=season, match_date=match_date.isoformat() if match_date else None)
+        match_date_value = match_date.isoformat() if match_date else None
+        response = self._provider_call(
+            "fixtures", {"league": competition.api_football_league_id, "season": season, "date": match_date_value},
+            lambda: self._provider.get_matches(league_id=competition.api_football_league_id, season=season, match_date=match_date_value),
+            cache_window=timedelta(hours=12), kind="core",
+        )
         source = self._source(); snapshot = self._snapshot(source, response); season_record = self._get_or_create_season(competition, season, source); saved = 0
         for payload in response.data:
             normalized = normalize_match(payload)
@@ -338,6 +519,118 @@ class IngestionService:
         if competition is None:
             raise IngestionError(f"Unsupported competition code: {code}")
         return competition
+
+    def _ensure_coverage(self, competition: Competition, season: int, field: str | None) -> None:
+        season_record = self._session.scalar(
+            select(Season).where(Season.competition_id == competition.id, Season.code == str(season))
+        )
+        now = datetime.now(UTC)
+        coverage = self._session.scalar(
+            select(CompetitionCoverage).where(
+                CompetitionCoverage.competition_id == competition.id,
+                CompetitionCoverage.season_id == (season_record.id if season_record else ""),
+                CompetitionCoverage.expires_at > now,
+            )
+        ) if season_record else None
+        if coverage is None:
+            summary = self.sync_competitions(season=season)
+            snapshot = self._session.get(RawDataSnapshot, summary.snapshot_id)
+            season_record = self._get_or_create_season(competition, season, self._source())
+            payload = {}
+            if snapshot and isinstance(snapshot.response_json, dict):
+                for item in snapshot.response_json.get("response", []):
+                    league = item.get("league", {}) if isinstance(item, dict) else {}
+                    if str(league.get("id")) == str(competition.api_football_league_id):
+                        payload = item.get("coverage") or {}
+                        break
+            coverage = CompetitionCoverage(
+                competition_id=competition.id,
+                season_id=season_record.id,
+                coverage=payload,
+                source_snapshot_id=snapshot.id if snapshot else None,
+                retrieved_at=snapshot.retrieved_at if snapshot else now,
+                expires_at=(snapshot.retrieved_at if snapshot else now) + timedelta(days=self._settings.provider_coverage_cache_days),
+                certainty="reported",
+            )
+            self._session.add(coverage)
+            self._session.commit()
+        if field is None:
+            return
+        value = self._coverage_value(coverage.coverage, field)
+        if value is not True:
+            # Older in-process adapters do not expose a coverage endpoint. Keep their
+            # backwards-compatible behavior while the real ApiFootballProvider is strict.
+            if type(self._provider).get_status is BaseProvider.get_status:
+                return
+            raise IngestionError(f"coverage_unavailable:{field}")
+
+    @staticmethod
+    def _coverage_value(payload: dict, field: str) -> object:
+        if not isinstance(payload, dict):
+            return None
+        if field in payload:
+            return payload[field]
+        fixtures = payload.get("fixtures")
+        if isinstance(fixtures, dict):
+            aliases = {
+                "lineups": "lineups",
+                "statistics": "statistics_fixtures",
+                "injuries": "events",
+            }
+            return fixtures.get(aliases.get(field, field))
+        return None
+
+    def provider_status(self) -> dict:
+        response = self._provider_call(
+            "status", {}, lambda: self._provider.get_status(),
+            cache_window=timedelta(hours=self._settings.provider_status_cache_hours), kind="status",
+        )
+        source = self._source()
+        snapshot = self._snapshot(source, response)
+        item = response.data[0] if response.data and isinstance(response.data[0], dict) else {}
+        account = item.get("account", {}) if isinstance(item.get("account"), dict) else {}
+        plan = account.get("plan", {}) if isinstance(account.get("plan"), dict) else {}
+        requests = item.get("requests", {}) if isinstance(item.get("requests"), dict) else {}
+        quota = response.quota or {}
+        daily_limit = self._to_int(requests.get("limit_day") or plan.get("quota_per_day") or quota.get("daily_limit") or quota.get("x-ratelimit-requests-limit"))
+        daily_used = self._to_int(requests.get("current"))
+        daily_remaining = (daily_limit - daily_used) if daily_limit is not None and daily_used is not None else self._to_int(quota.get("daily_remaining") or quota.get("x-ratelimit-requests-remaining"))
+        usage = self._session.scalar(select(ProviderQuotaUsage).where(ProviderQuotaUsage.source_id == source.id, ProviderQuotaUsage.usage_date == snapshot.retrieved_at.date()))
+        if usage is None:
+            usage = next(
+                (item for item in self._session.new if isinstance(item, ProviderQuotaUsage) and item.source_id == source.id and item.usage_date == snapshot.retrieved_at.date()),
+                None,
+            )
+        if usage is None:
+            usage = ProviderQuotaUsage(source_id=source.id, usage_date=snapshot.retrieved_at.date())
+            self._session.add(usage)
+        usage.plan_name = plan.get("name") if isinstance(plan.get("name"), str) else None
+        usage.daily_limit = daily_limit
+        usage.daily_remaining = daily_remaining
+        usage.remaining = daily_remaining
+        usage.quota_limit = daily_limit
+        usage.minute_limit = self._to_int(
+            requests.get("limit_minute")
+            or quota.get("minute_limit")
+            or quota.get("x-ratelimit-requests-limit-minute")
+        )
+        usage.minute_remaining = self._to_int(
+            quota.get("minute_remaining")
+            or quota.get("x-ratelimit-requests-remaining-minute")
+        )
+        usage.last_checked_at = snapshot.retrieved_at
+        usage.quota_state = self._quota_state(daily_remaining)
+        self._session.commit()
+        return {
+            "plan_name": usage.plan_name,
+            "daily_limit": usage.daily_limit,
+            "daily_remaining": usage.daily_remaining,
+            "minute_limit": usage.minute_limit,
+            "minute_remaining": usage.minute_remaining,
+            "quota_state": usage.quota_state,
+            "snapshot_id": snapshot.id,
+            "cached": response.cached,
+        }
 
     def _upsert_team_from_payload(self, payload: dict, source: DataSource) -> Team | None:
         from app.services.normalization.team import normalize_team

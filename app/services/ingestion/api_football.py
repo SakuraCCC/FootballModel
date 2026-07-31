@@ -40,7 +40,9 @@ class ApiFootballProvider(BaseProvider):
         request_time = datetime.now(UTC)
         request_params = {key: value for key, value in params.items() if value is not None}
         response = None
+        attempts = 0
         for attempt in range(self._max_retries + 1):
+            attempts += 1
             try:
                 response = self._client.get(
                     f"{self._base_url}/{endpoint}",
@@ -74,8 +76,29 @@ class ApiFootballProvider(BaseProvider):
         if payload.get("errors"):
             raise ProviderResponseError(f"API-Football {endpoint} returned provider errors")
         data = payload.get("response")
+        if isinstance(data, dict):
+            data = [data]
         if not isinstance(data, list):
             raise ProviderResponseError(f"API-Football {endpoint} response is malformed")
+        quota = {
+            "x-ratelimit-requests-limit": response.headers.get("x-ratelimit-requests-limit"),
+            "x-ratelimit-requests-remaining": response.headers.get("x-ratelimit-requests-remaining"),
+            "x-ratelimit-requests-limit-minute": response.headers.get("x-ratelimit-requests-limit-minute"),
+            "x-ratelimit-requests-remaining-minute": response.headers.get("x-ratelimit-requests-remaining-minute"),
+        }
+        # API gateways use multiple casing conventions; httpx.Headers lookup is case-insensitive.
+        for key, aliases in {
+            "daily_limit": ("X-RateLimit-Limit", "x-ratelimit-requests-limit"),
+            "daily_remaining": ("X-RateLimit-Remaining", "x-ratelimit-requests-remaining"),
+            "minute_limit": ("X-RateLimit-Limit-Minute", "x-ratelimit-requests-limit-minute"),
+            "minute_remaining": ("X-RateLimit-Remaining-Minute", "x-ratelimit-requests-remaining-minute"),
+        }.items():
+            if quota.get(aliases[-1]) is None:
+                for alias in aliases:
+                    value = response.headers.get(alias)
+                    if value is not None:
+                        quota[aliases[-1]] = value
+                        break
         return ProviderResponse(
             provider=self.provider_name,
             endpoint=endpoint,
@@ -83,12 +106,9 @@ class ApiFootballProvider(BaseProvider):
             retrieved_at=retrieved_at,
             response_json=payload,
             data=data,
-            quota={
-                key: response.headers.get(key)
-                for key in ("x-ratelimit-requests-limit", "x-ratelimit-requests-remaining")
-                if response.headers.get(key) is not None
-            },
+            quota={key: value for key, value in quota.items() if value is not None},
             status_code=response.status_code,
+            request_attempts=attempts,
         )
 
     def get_competitions(self, *, season: int | None = None) -> ProviderResponse:
@@ -120,3 +140,6 @@ class ApiFootballProvider(BaseProvider):
 
     def get_standings(self, *, league_id: int, season: int) -> ProviderResponse:
         return self._get("standings", {"league": league_id, "season": season})
+
+    def get_status(self) -> ProviderResponse:
+        return self._get("status", {})

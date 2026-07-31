@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models import DataSource, Match, RawDataSnapshot
 from app.services.ingestion.api_football import ApiFootballProvider
+from app.services.ingestion.service import IngestionService
 
 
 class ProviderHealthService:
@@ -49,13 +50,16 @@ class ProviderHealthService:
             }
         started = perf_counter()
         try:
-            ApiFootballProvider().get_competitions()
+            quota = IngestionService(self._session, ApiFootballProvider()).provider_status()
             return {
                 "provider": name,
                 "status": "healthy",
                 "response_time_ms": round((perf_counter() - started) * 1000, 2),
                 "last_sync": last_sync,
                 "data_quality": quality,
+                "plan_name": quota.get("plan_name"),
+                "daily_remaining": quota.get("daily_remaining"),
+                "quota_state": quota.get("quota_state"),
             }
         except Exception:
             return {
